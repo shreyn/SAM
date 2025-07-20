@@ -278,96 +278,9 @@ class NotesService:
             note = self.get_note(note_id)
             if note:
                 notes.append(note)
-        
         # Sort by updated_at (newest first)
         notes.sort(key=lambda x: x.updated_at, reverse=True)
         return notes
-    
-    def search_notes(self, query: str) -> List[Note]:
-        """Search notes by title and content"""
-        query_lower = query.lower()
-        matching_notes = []
-        
-        for note in self.get_all_notes():
-            # Search in title
-            if query_lower in note.title.lower():
-                matching_notes.append(note)
-                continue
-            
-            # Search in content
-            if query_lower in note.content.lower():
-                matching_notes.append(note)
-                continue
-        
-        return matching_notes
-    
-    def update_note(self, note_id: str, title: str = None, content: str = None) -> bool:
-        """Update a note"""
-        try:
-            note = self.get_note(note_id)
-            if not note:
-                return False
-            
-            # Update fields
-            if title is not None:
-                note.title = title
-            if content is not None:
-                note.content = content
-            
-            note.updated_at = datetime.now()
-            
-            # Save updated note
-            note_file = self.notes_dir / f"{note_id}.json"
-            with open(note_file, 'w', encoding='utf-8') as f:
-                json.dump(note.to_dict(), f, indent=2, ensure_ascii=False)
-            
-            # Update index
-            if note_id in self.index:
-                self.index[note_id]['title'] = note.title
-                self.index[note_id]['updated_at'] = note.updated_at.isoformat()
-                self._save_index()
-            
-            return True
-            
-        except Exception as e:
-            print(f"Error updating note: {e}")
-            return False
-    
-    def delete_note(self, note_id: str) -> bool:
-        """Delete a note"""
-        try:
-            if note_id not in self.index:
-                return False
-            
-            # Delete note file
-            note_file = self.notes_dir / self.index[note_id]['filename']
-            if note_file.exists():
-                note_file.unlink()
-            
-            # Remove from index
-            del self.index[note_id]
-            self._save_index()
-            
-            return True
-            
-        except Exception as e:
-            print(f"Error deleting note: {e}")
-            return False
-    
-    def get_notes_by_tag(self, tag: str) -> List[Note]:
-        """Get all notes with a specific tag (placeholder - tags not implemented)"""
-        # For now, return empty list since tags are not implemented
-        return []
-    
-    def get_all_tags(self) -> List[str]:
-        """Get all unique tags (placeholder - tags not implemented)"""
-        # For now, return empty list since tags are not implemented
-        return []
-    
-    def get_recent_notes(self, limit: int = 5) -> List[Note]:
-        """Get the most recent notes"""
-        all_notes = self.get_all_notes()
-        return all_notes[:limit]
     
     def format_note_for_display(self, note: Note, include_content: bool = True) -> str:
         """Format a note for display"""

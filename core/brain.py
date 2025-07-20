@@ -533,7 +533,7 @@ class SAMBrain:
         success = self.notes_service.edit_note(title, content)
         
         if success:
-            return f"✅ Note '{title}' has been updated successfully."
+            return f"The note '{title}' has been edited."
         else:
             return "❌ Sorry, I couldn't update the note. Please try again."
     
@@ -559,36 +559,20 @@ class SAMBrain:
     
     def _execute_list_notes(self, args: Dict[str, Any]) -> str:
         """Execute list_notes action"""
-        tag = args.get('tag')
         limit = args.get('limit')
-        
-        # Get notes based on filters
-        if tag:
-            # Filter by tag
-            notes = self.notes_service.get_notes_by_tag(tag)
-            if not notes:
-                return f"You have no notes with the tag '{tag}'."
-        else:
-            # Get all notes
-            notes = self.notes_service.get_all_notes()
-            if not notes:
-                return "You have no notes yet."
-        
+        # Get all notes
+        notes = self.notes_service.get_all_notes()
+        if not notes:
+            return "You have no notes yet."
         # Apply limit if specified
         if limit and isinstance(limit, int) and limit > 0:
             notes = notes[:limit]
-        
         # Format the response
-        if tag:
-            header = f"Notes with tag '{tag}':"
-        elif limit:
+        if limit:
             header = f"Your {len(notes)} most recent notes:"
         else:
             header = f"You have {len(notes)} total notes."
-        
-        # Use the existing formatting method from NotesService
         formatted_notes = self.notes_service.format_notes_list(notes)
-        
         return f"{header}\n{formatted_notes}"
     
     def _execute_add_todo(self, args: Dict[str, Any]) -> str:
