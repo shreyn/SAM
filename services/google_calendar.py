@@ -20,6 +20,8 @@ except ImportError:
     GOOGLE_AVAILABLE = False
     print("Warning: Google Calendar integration not available. Install with: pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client")
 
+from utils.config import TIMEZONE
+
 @dataclass
 class CalendarEvent:
     """Represents a Google Calendar event"""
@@ -111,7 +113,7 @@ class GoogleCalendarService:
             try:
                 import pytz
                 # Set timezone to Los Angeles
-                la_tz = pytz.timezone('America/Los_Angeles')
+                la_tz = pytz.timezone(TIMEZONE)
                 
                 # Make local time timezone-aware in Los Angeles timezone
                 start_la = la_tz.localize(start)
@@ -157,7 +159,7 @@ class GoogleCalendarService:
                     # If it's timezone-aware, convert to Los Angeles timezone
                     if start_dt.tzinfo is not None:
                         try:
-                            la_tz = pytz.timezone('America/Los_Angeles')
+                            la_tz = pytz.timezone(TIMEZONE)
                             start_dt = start_dt.astimezone(la_tz)
                         except ImportError:
                             # Fallback to standard library
@@ -177,7 +179,7 @@ class GoogleCalendarService:
                     # If it's timezone-aware, convert to Los Angeles timezone
                     if end_dt.tzinfo is not None:
                         try:
-                            la_tz = pytz.timezone('America/Los_Angeles')
+                            la_tz = pytz.timezone(TIMEZONE)
                             end_dt = end_dt.astimezone(la_tz)
                         except ImportError:
                             # Fallback to standard library
@@ -244,11 +246,11 @@ class GoogleCalendarService:
                 'location': location,
                 'start': {
                     'dateTime': start_dt.isoformat(),
-                    'timeZone': 'America/Los_Angeles',
+                    'timeZone': TIMEZONE,
                 },
                 'end': {
                     'dateTime': end_dt.isoformat(),
-                    'timeZone': 'America/Los_Angeles',
+                    'timeZone': TIMEZONE,
                 },
             }
             

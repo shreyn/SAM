@@ -129,7 +129,7 @@ class ActionRegistry:
             name="list_notes",
             description="List all notes",
             required_args=[],
-            optional_args=["tag", "limit"]
+            optional_args=["limit"]
         ))
         
         # Todo-related actions

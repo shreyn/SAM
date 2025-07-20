@@ -1,150 +1,50 @@
 # SAM - Smart Assistant Manager
 
-A robust, modular AI assistant with intelligent intent classification and follow-up management.
+A modular, extensible AI assistant for natural language productivity, featuring intelligent intent classification, Google Calendar integration, and local notes management.
+
+---
 
 ## 🚀 Features
 
-### **Two-Stage Intent Classification**
-- **Stage 1**: Intent Type Detection (QUERY, ACTION, GREETING, UNKNOWN)
-- **Stage 2**: Specific Action Classification within each type
-- Handles semantic similarity correctly (e.g., "do i have events today" vs "create an event today")
+- **Two-Stage Intent Classification**: Fast, pattern-based detection of user intent and action, with fallback to LLM for ambiguous queries.
+- **Follow-up System**: Multi-turn conversations with automatic tracking of missing arguments and context-aware follow-up questions.
+- **Google Calendar Integration**: Create and query events using natural language, with support for relative dates and time zone configuration.
+- **Notes Management**: Create, read, update, delete, and search notes, stored locally as JSON files.
+- **Time & Date Intelligence**: Handles queries about current time, date, and day, with advanced natural language parsing.
+- **LLM Fallback**: Uses a local LLM (e.g., Mistral via LM Studio) for complex or unknown queries.
+- **Configurable & Extensible**: Modular architecture for easy addition of new actions and integrations.
 
-### **Modular Follow-up System**
-- Tracks missing arguments for each action
-- Intelligently asks for missing information
-- Supports multi-turn conversations
-- Automatic task state management
-
-### **Event Management**
-- Create events with natural language
-- Query events with intelligent filtering
-- Support for relative dates (today, tomorrow, next Monday)
-- Persistent storage with JSON backend
-
-### **Notes Management**
-- Create, read, update, and delete notes
-- Full-text search across titles, content, and tags
-- Tag-based organization and filtering
-- Local file-based storage with JSON format
-- Natural language note creation and management
-
-### **Time & Date Intelligence**
-- Current time, date, and day queries
-- Context-aware responses
-- Natural language time parsing
+---
 
 ## 🏗️ Architecture
 
-### Core Components
+- **main.py**: CLI entry point for the assistant.
+- **core/brain.py**: Main orchestrator (SAMBrain) for intent classification, task state, follow-ups, and action execution.
+- **core/intent_classifier.py**: Two-stage intent classifier with regex-based pattern matching and argument extraction.
+- **core/task_state.py**: Manages current task, arguments, follow-up state, and expiration.
+- **core/action_registry.py**: Registers all available actions and their required/optional arguments.
+- **core/google_calendar.py**: Handles Google Calendar authentication, event creation, and querying, with time zone support.
+- **core/notes_service.py**: Manages notes as local JSON files, providing CRUD operations and search.
+- **core/lightweight_llm.py**: Minimal client for LLM-based intent classification and response generation.
+- **utils/time_parser.py**: Centralized time parsing and formatting using parsedatetime.
+- **utils/config.py**: Loads configuration from environment variables and .env files, including API URLs and TIMEZONE.
 
-1. **IntentClassifier** (`core/intent_classifier.py`)
-   - Two-stage classification system
-   - Pattern-based with confidence scoring
-   - Argument extraction from queries
+---
 
-2. **TaskState** (`core/task_state.py`)
-   - Manages current task and missing arguments
-   - Follow-up tracking and timeout handling
-   - Automatic question generation
-
-3. **ActionRegistry** (`core/action_registry.py`)
-   - Defines required and optional arguments per action
-   - Action validation and argument management
-   - Extensible action system
-
-4. **EventStore** (`core/event_store.py`)
-   - Event creation, storage, and retrieval
-   - Intelligent time parsing and filtering
-   - JSON-based persistence
-
-5. **SAMBrain** (`core/brain.py`)
-   - Main orchestrator
-   - Follow-up logic and action execution
-   - Natural language processing
-
-## 🎯 Supported Actions
-
-### Queries
-- `get_events` - Query calendar events
-- `get_notes` - List all notes or filter by tag
-- `search_notes` - Search notes by query
-- `get_tags` - Get all available tags
-- `get_time` - Get current time
-- `get_date` - Get current date
-- `get_day` - Get current day of week
-
-### Actions
-- `create_event` - Create calendar events
-- `create_note` - Create notes with title, content, and tags
-- `update_note` - Update existing notes
-- `delete_note` - Delete notes
-- `create_task` - Create tasks (planned)
-
-### System
-- `greeting` - Handle greetings
-- `unknown` - Handle unknown intents
-
-## 💬 Example Conversations
-
-### Event Creation with Follow-ups
-```
-User: Create an event
-SAM: What should I call this event?
-User: Team meeting
-SAM: When should this event start?
-User: Tomorrow at 2pm
-SAM: ✅ Event 'Team meeting' has been created for July 20 at 02:00 PM.
-```
-
-### Event Queries
-```
-User: Do I have events today?
-SAM: You have no events scheduled for today.
-
-User: Next event?
-SAM: You have 1 event: 'Team meeting' on July 20 at 02:00 PM.
-```
-
-### Note Management
-```
-User: Create a note about Python programming
-SAM: What should the note say?
-User: Learn Python basics, data structures, and OOP
-SAM: ✅ Note 'Python programming' has been created with ID: note_20250120_143022.
-
-User: Show my notes
-SAM: 1. 📝 Python programming
-   🆔 note_20250120_143022
-   📅 2025-01-20 14:30
-
-User: Search notes for python
-SAM: 1. 📝 Python programming
-   🆔 note_20250120_143022
-   📅 2025-01-20 14:30
-```
-
-### Time & Date
-```
-User: What time is it?
-SAM: The current time is 06:36 PM.
-
-User: What day is it?
-SAM: Today is Saturday.
-```
-
-## 🛠️ Installation & Usage
+## ⚙️ Setup
 
 ### Prerequisites
 - Python 3.8+
-- Virtual environment (recommended)
+- [LM Studio](https://lmstudio.ai) (for LLM fallback, optional but recommended)
+- Google Calendar API credentials (for calendar features)
 
-### Setup
+### Installation
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd SAM
 
-# Create virtual environment
+# Create and activate virtual environment
 python -m venv sam_env
 source sam_env/bin/activate  # On Windows: sam_env\Scripts\activate
 
@@ -152,59 +52,71 @@ source sam_env/bin/activate  # On Windows: sam_env\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### Running SAM
+### Google Calendar Setup
+1. Create a Google Cloud project and enable the Google Calendar API.
+2. Create OAuth 2.0 credentials (Desktop application) and download `credentials.json`.
+3. Place `credentials.json` in the `data/` directory.
+4. On first run, authenticate in the browser when prompted.
+
+### LLM Setup (Optional)
+1. Download and install LM Studio.
+2. Load a compatible model (e.g., `mistralai/mistral-nemo-instruct-2407-q3_k_l`).
+3. Start the API server on port 1234.
+
+---
+
+## 🖥️ Usage
+
+### Start the Assistant
 ```bash
+./start_sam.sh
+# or manually
+source sam_env/bin/activate
 python main.py
 ```
 
-### Available Commands
-- `help` - Show help information
-- `debug` - Show debug information
-- `reset` - Reset current task
-- `quit` or `exit` - Exit SAM
+### Example Commands
+- `What time is it?`
+- `Create an event called team meeting tomorrow at 2pm`
+- `Show my notes`
+- `Create a note about project ideas`
+- `Search notes for python`
+- `reset` (reset current task)
+- `help` (show help)
+- `quit` or `exit` (exit SAM)
 
-## 🔧 Technical Details
+---
 
-### Intent Classification Algorithm
-1. **Pattern Matching**: Fast regex-based classification
-2. **Confidence Scoring**: Based on pattern strength and context
-3. **Two-Stage Processing**: Intent type → Specific action
-4. **Fallback Handling**: Unknown intents gracefully handled
+## 🔧 Configuration
 
-### Follow-up System
-1. **Task State Tracking**: Maintains current task and missing args
-2. **Argument Extraction**: Intelligent parsing of follow-up responses
-3. **Question Generation**: Context-aware follow-up questions
-4. **Timeout Management**: Automatic task expiration
+Edit `.env` or set environment variables to customize:
+- `API_URL` (default: `http://127.0.0.1:1234`)
+- `MODEL_NAME` (default: `mistralai/mistral-nemo-instruct-2407`)
+- `TIMEZONE` (default: `America/Los_Angeles`)
 
-### Event System
-1. **Natural Language Parsing**: Handles various time formats
-2. **Relative Date Support**: Today, tomorrow, next [day]
-3. **Intelligent Filtering**: Date, upcoming, limit-based queries
-4. **Persistent Storage**: JSON-based event persistence
+---
 
-## 🧪 Testing
+## 🧩 Extensibility
 
-The system includes comprehensive testing for:
-- Intent classification accuracy
-- Follow-up logic functionality
-- Event creation and querying
-- Time and date handling
-- Error handling and edge cases
+- **Add New Actions**: Register new actions in `core/action_registry.py` and implement their logic in `core/brain.py`.
+- **Integrate More Services**: Add new service modules and connect them via the orchestrator.
+- **Customize LLM**: Point to any local or remote LLM API by changing `API_URL` and `MODEL_NAME`.
 
-## 🔮 Future Enhancements
+---
 
-- **Google Calendar Integration**: Real calendar sync
-- **LLM Integration**: Enhanced natural language understanding
-- **Voice Interface**: Speech-to-text and text-to-speech
-- **Task Management**: Todo list and reminder system
-- **Note Taking**: Rich text note creation
-- **Multi-language Support**: Internationalization
+## 📁 Data Storage
+
+- **Notes**: Stored in `data/notes/` as individual JSON files, indexed by `index.json`.
+- **Google Calendar**: Credentials in `data/credentials.json`, OAuth token in `data/token.pickle`.
+
+---
+
+## 🛠️ Testing
+
+- Comprehensive test suites for notes and overall assistant functionality are included (see test files).
+
+---
 
 ## 📝 License
 
-This project is licensed under the MIT License.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+This project is licensed under the MIT License. 

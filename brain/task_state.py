@@ -91,9 +91,7 @@ class TaskState:
             'location': "Where should this event take place?",
             'content': "What should the note say?",
             'note_id': "What's the ID of the note?",
-            'query': "What would you like to search for?",
-            'tag': "What tag would you like to filter by?",
-            'tags': "What tags should I add to this note?"
+            'query': "What would you like to search for?"
         }
         
         # Override title question for note actions

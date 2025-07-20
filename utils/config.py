@@ -26,3 +26,6 @@ TOKEN_PATH = os.path.join(DATA_DIR, "token.pickle")
 SAM_NAME = "SAM"
 SAM_PERSONALITY = "assistant"
 MAX_RESPONSE_LENGTH = 200  # Keep responses concise 
+
+# Timezone Configuration
+TIMEZONE = os.getenv("TIMEZONE", "America/Los_Angeles") 

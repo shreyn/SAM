@@ -75,15 +75,6 @@ class NotesService:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"note_{timestamp}"
     
-    def _sanitize_filename(self, title: str) -> str:
-        """Sanitize title for filename"""
-        # Remove or replace invalid characters
-        sanitized = re.sub(r'[<>:"/\\|?*]', '_', title)
-        # Limit length
-        if len(sanitized) > 50:
-            sanitized = sanitized[:47] + "..."
-        return sanitized.strip()
-    
     def create_note(self, title: str, content: str) -> Optional[Note]:
         """Create a new note"""
         try:

@@ -10,8 +10,8 @@ from datetime import datetime, timedelta
 from .intent_classifier import IntentClassifier, IntentResult
 from .task_state import TaskState
 from .action_registry import ActionRegistry
-from .google_calendar import GoogleCalendarService, CalendarEvent
-from .notes_service import NotesService, Note
+from services.google_calendar import GoogleCalendarService, CalendarEvent
+from services.notes_service import NotesService, Note
 
 class SAMBrain:
     """Main brain that orchestrates intent classification, task state, and actions"""
@@ -24,7 +24,7 @@ class SAMBrain:
         self.task_state = TaskState()
         
         # Initialize LLM for fallback responses
-        from .lightweight_llm import LightweightLLM
+        from services.lightweight_llm import LightweightLLM
         self.llm = LightweightLLM(mock_mode=False)
         
         # Confidence thresholds
@@ -262,27 +262,6 @@ class SAMBrain:
         # If message is longer than a few words, treat as content
         if len(message.split()) > 3:
             return message.strip()
-        
-        return None
-    
-    def _extract_tags_from_follow_up(self, message: str) -> Optional[List[str]]:
-        """Extract tags from follow-up message"""
-        # Look for tags after "with tags" or "tagged as"
-        patterns = [
-            r'with\s+tags?\s+(.+?)$',
-            r'tagged\s+as\s+(.+?)$',
-            r'tags?\s+(.+?)$',
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, message, re.IGNORECASE)
-            if match:
-                tags_text = match.group(1).strip()
-                # Split by comma and clean up
-                tags = [tag.strip() for tag in tags_text.split(',')]
-                tags = [tag for tag in tags if tag and len(tag) > 0]
-                if tags:
-                    return tags
         
         return None
     

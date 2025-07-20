@@ -6,7 +6,7 @@ Main entry point for the SAM assistant
 
 import os
 import sys
-from core.brain import SAMBrain
+from brain.orchestrator import SAMBrain
 
 def main():
     """Main function to run SAM"""
