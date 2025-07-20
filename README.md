@@ -21,6 +21,13 @@ A robust, modular AI assistant with intelligent intent classification and follow
 - Support for relative dates (today, tomorrow, next Monday)
 - Persistent storage with JSON backend
 
+### **Notes Management**
+- Create, read, update, and delete notes
+- Full-text search across titles, content, and tags
+- Tag-based organization and filtering
+- Local file-based storage with JSON format
+- Natural language note creation and management
+
 ### **Time & Date Intelligence**
 - Current time, date, and day queries
 - Context-aware responses
@@ -59,14 +66,19 @@ A robust, modular AI assistant with intelligent intent classification and follow
 
 ### Queries
 - `get_events` - Query calendar events
+- `get_notes` - List all notes or filter by tag
+- `search_notes` - Search notes by query
+- `get_tags` - Get all available tags
 - `get_time` - Get current time
 - `get_date` - Get current date
 - `get_day` - Get current day of week
 
 ### Actions
 - `create_event` - Create calendar events
+- `create_note` - Create notes with title, content, and tags
+- `update_note` - Update existing notes
+- `delete_note` - Delete notes
 - `create_task` - Create tasks (planned)
-- `create_note` - Create notes (planned)
 
 ### System
 - `greeting` - Handle greetings
@@ -91,6 +103,24 @@ SAM: You have no events scheduled for today.
 
 User: Next event?
 SAM: You have 1 event: 'Team meeting' on July 20 at 02:00 PM.
+```
+
+### Note Management
+```
+User: Create a note about Python programming
+SAM: What should the note say?
+User: Learn Python basics, data structures, and OOP
+SAM: ✅ Note 'Python programming' has been created with ID: note_20250120_143022.
+
+User: Show my notes
+SAM: 1. 📝 Python programming
+   🆔 note_20250120_143022
+   📅 2025-01-20 14:30
+
+User: Search notes for python
+SAM: 1. 📝 Python programming
+   🆔 note_20250120_143022
+   📅 2025-01-20 14:30
 ```
 
 ### Time & Date

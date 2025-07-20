@@ -67,6 +67,32 @@ class FastMatcher:
                 r'\bhi\b',
                 r'\bhello\b',
                 r'\bhey\b'
+            ],
+            'create_note': [
+                r'\bcreate.*note\b',
+                r'\bwrite.*note\b',
+                r'\badd.*note\b',
+                r'\bnew.*note\b',
+                r'\bnote.*titled\b',
+                r'\bcreate.*titled\b'
+            ],
+            'read_note': [
+                r'\bread.*note\b',
+                r'\bshow.*note\b',
+                r'\bget.*note\b',
+                r'\bopen.*note\b'
+            ],
+            'edit_note': [
+                r'\bedit.*note\b',
+                r'\bupdate.*note\b',
+                r'\bmodify.*note\b',
+                r'\bchange.*note\b'
+            ],
+            'delete_note': [
+                r'\bdelete.*note\b',
+                r'\bremove.*note\b',
+                r'\btrash.*note\b',
+                r'\bdel.*note\b'
             ]
         }
     

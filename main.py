@@ -75,6 +75,9 @@ def print_help():
     print("• 'Do I have events today?'")
     print("• 'Create an event called meeting'")
     print("• 'Next event?'")
+    print("• 'Create a note about project ideas'")
+    print("• 'Show my notes'")
+    print("• 'Search notes for python'")
     print("• 'Hello'")
 
 def print_debug_info(sam):

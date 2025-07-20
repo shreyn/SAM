@@ -18,7 +18,6 @@ class Note:
     id: str
     title: str
     content: str
-    tags: List[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     
@@ -28,7 +27,6 @@ class Note:
             'id': self.id,
             'title': self.title,
             'content': self.content,
-            'tags': self.tags,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
@@ -40,7 +38,6 @@ class Note:
             id=data['id'],
             title=data['title'],
             content=data['content'],
-            tags=data.get('tags', []),
             created_at=datetime.fromisoformat(data['created_at']),
             updated_at=datetime.fromisoformat(data['updated_at'])
         )
@@ -87,18 +84,16 @@ class NotesService:
             sanitized = sanitized[:47] + "..."
         return sanitized.strip()
     
-    def create_note(self, title: str, content: str, tags: List[str] = None) -> Optional[Note]:
+    def create_note(self, title: str, content: str) -> Optional[Note]:
         """Create a new note"""
         try:
             note_id = self._generate_id()
-            sanitized_title = self._sanitize_filename(title)
             
             # Create note object
             note = Note(
                 id=note_id,
                 title=title,
-                content=content,
-                tags=tags or []
+                content=content
             )
             
             # Save note file
@@ -111,8 +106,7 @@ class NotesService:
                 'title': title,
                 'filename': f"{note_id}.json",
                 'created_at': note.created_at.isoformat(),
-                'updated_at': note.updated_at.isoformat(),
-                'tags': tags or []
+                'updated_at': note.updated_at.isoformat()
             }
             self._save_index()
             
@@ -121,6 +115,80 @@ class NotesService:
         except Exception as e:
             print(f"Error creating note: {e}")
             return None
+    
+    def get_or_create_todo_note(self) -> Note:
+        """Get the todo note, create it if it doesn't exist"""
+        todo_note = self.get_note_by_title("to do")
+        if not todo_note:
+            # Create the todo note with empty content
+            todo_note = self.create_note("to do", "")
+        return todo_note
+    
+    def add_todo_item(self, item_text: str) -> bool:
+        """Add an item to the todo list"""
+        try:
+            todo_note = self.get_or_create_todo_note()
+            # Parse existing content to find the highest number
+            lines = [line for line in todo_note.content.split('\n') if line.strip()]
+            max_number = 0
+            for line in lines:
+                match = re.match(r'^(\d+)[.)]', line.strip())
+                if match:
+                    number = int(match.group(1))
+                    max_number = max(max_number, number)
+            new_number = max_number + 1
+            new_line = f"{new_number}. {item_text}"
+            if todo_note.content.strip():
+                new_content = todo_note.content + '\n' + new_line
+            else:
+                new_content = new_line
+            success = self.edit_note("to do", new_content)
+            return success
+        except Exception as e:
+            print(f"Error adding todo item: {e}")
+            return False
+    
+    def clear_todo_list(self) -> bool:
+        """Clear the todo list"""
+        try:
+            todo_note = self.get_or_create_todo_note()
+            success = self.edit_note("to do", "")
+            return success
+        except Exception as e:
+            print(f"Error clearing todo list: {e}")
+            return False
+    
+    def remove_todo_item(self, item_number: int) -> bool:
+        """Remove a specific item from the todo list"""
+        try:
+            todo_note = self.get_or_create_todo_note()
+            lines = [line for line in todo_note.content.split('\n') if line.strip()]
+            new_lines = []
+            renumbered = False
+            for line in lines:
+                match = re.match(r'^(\d+)[.)]', line.strip())
+                if match:
+                    number = int(match.group(1))
+                    if number == item_number:
+                        renumbered = True
+                        continue
+                    elif renumbered:
+                        new_number = number - 1
+                        new_line = re.sub(r'^\d+[.)]', f"{new_number}.", line)
+                        new_lines.append(new_line)
+                    else:
+                        new_lines.append(line)
+                else:
+                    new_lines.append(line)
+            if not new_lines:
+                new_content = ""
+            else:
+                new_content = '\n'.join(new_lines)
+            success = self.edit_note("to do", new_content)
+            return success
+        except Exception as e:
+            print(f"Error removing todo item: {e}")
+            return False
     
     def get_note(self, note_id: str) -> Optional[Note]:
         """Get a note by ID"""
@@ -141,6 +209,68 @@ class NotesService:
             print(f"Error loading note: {e}")
             return None
     
+    def get_note_by_title(self, title: str) -> Optional[Note]:
+        """Get a note by title"""
+        try:
+            # Search through index for matching title
+            for note_id, note_info in self.index.items():
+                if note_info['title'].lower() == title.lower():
+                    return self.get_note(note_id)
+            return None
+            
+        except Exception as e:
+            print(f"Error finding note by title: {e}")
+            return None
+    
+    def edit_note(self, title: str, new_content: str) -> bool:
+        """Edit a note's content by title"""
+        try:
+            note = self.get_note_by_title(title)
+            if not note:
+                return False
+            
+            # Update content and timestamp
+            note.content = new_content
+            note.updated_at = datetime.now()
+            
+            # Save updated note
+            note_file = self.notes_dir / f"{note.id}.json"
+            with open(note_file, 'w', encoding='utf-8') as f:
+                json.dump(note.to_dict(), f, indent=2, ensure_ascii=False)
+            
+            # Update index
+            self.index[note.id]['updated_at'] = note.updated_at.isoformat()
+            self._save_index()
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error editing note: {e}")
+            return False
+    
+    def delete_note_by_title(self, title: str) -> bool:
+        """Delete a note by title"""
+        try:
+            note = self.get_note_by_title(title)
+            if not note:
+                return False
+            
+            # Delete note file
+            note_file = self.notes_dir / f"{note.id}.json"
+            if note_file.exists():
+                note_file.unlink()
+            
+            # Remove from index
+            if note.id in self.index:
+                del self.index[note.id]
+                self._save_index()
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error deleting note: {e}")
+            return False
+    
     def get_all_notes(self) -> List[Note]:
         """Get all notes"""
         notes = []
@@ -154,7 +284,7 @@ class NotesService:
         return notes
     
     def search_notes(self, query: str) -> List[Note]:
-        """Search notes by title, content, or tags"""
+        """Search notes by title and content"""
         query_lower = query.lower()
         matching_notes = []
         
@@ -168,15 +298,10 @@ class NotesService:
             if query_lower in note.content.lower():
                 matching_notes.append(note)
                 continue
-            
-            # Search in tags
-            if any(query_lower in tag.lower() for tag in note.tags):
-                matching_notes.append(note)
-                continue
         
         return matching_notes
     
-    def update_note(self, note_id: str, title: str = None, content: str = None, tags: List[str] = None) -> bool:
+    def update_note(self, note_id: str, title: str = None, content: str = None) -> bool:
         """Update a note"""
         try:
             note = self.get_note(note_id)
@@ -188,8 +313,6 @@ class NotesService:
                 note.title = title
             if content is not None:
                 note.content = content
-            if tags is not None:
-                note.tags = tags
             
             note.updated_at = datetime.now()
             
@@ -202,7 +325,6 @@ class NotesService:
             if note_id in self.index:
                 self.index[note_id]['title'] = note.title
                 self.index[note_id]['updated_at'] = note.updated_at.isoformat()
-                self.index[note_id]['tags'] = note.tags
                 self._save_index()
             
             return True
@@ -233,22 +355,14 @@ class NotesService:
             return False
     
     def get_notes_by_tag(self, tag: str) -> List[Note]:
-        """Get all notes with a specific tag"""
-        tag_lower = tag.lower()
-        matching_notes = []
-        
-        for note in self.get_all_notes():
-            if any(tag_lower == note_tag.lower() for note_tag in note.tags):
-                matching_notes.append(note)
-        
-        return matching_notes
+        """Get all notes with a specific tag (placeholder - tags not implemented)"""
+        # For now, return empty list since tags are not implemented
+        return []
     
     def get_all_tags(self) -> List[str]:
-        """Get all unique tags"""
-        tags = set()
-        for note in self.get_all_notes():
-            tags.update(note.tags)
-        return sorted(list(tags))
+        """Get all unique tags (placeholder - tags not implemented)"""
+        # For now, return empty list since tags are not implemented
+        return []
     
     def get_recent_notes(self, limit: int = 5) -> List[Note]:
         """Get the most recent notes"""
@@ -262,9 +376,6 @@ class NotesService:
         lines.append(f"🆔 {note.id}")
         lines.append(f"📅 Created: {note.created_at.strftime('%Y-%m-%d %H:%M')}")
         lines.append(f"🔄 Updated: {note.updated_at.strftime('%Y-%m-%d %H:%M')}")
-        
-        if note.tags:
-            lines.append(f"🏷️  Tags: {', '.join(note.tags)}")
         
         if include_content:
             lines.append("")
@@ -281,11 +392,6 @@ class NotesService:
         
         lines = []
         for i, note in enumerate(notes, 1):
-            lines.append(f"{i}. 📝 {note.title}")
-            lines.append(f"   🆔 {note.id}")
-            lines.append(f"   📅 {note.updated_at.strftime('%Y-%m-%d %H:%M')}")
-            if note.tags:
-                lines.append(f"   🏷️  {', '.join(note.tags)}")
-            lines.append("")
+            lines.append(f"{i}. {note.title}")
         
         return "\n".join(lines) 

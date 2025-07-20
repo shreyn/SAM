@@ -100,49 +100,64 @@ class ActionRegistry:
         self.register_action(ActionDefinition(
             name="create_note",
             description="Create a new note",
-            required_args=["content"],
-            optional_args=["title", "tags"]
-        ))
-        
-        self.register_action(ActionDefinition(
-            name="get_notes",
-            description="Get all notes or search notes",
-            required_args=[],
-            optional_args=["query", "tag", "limit", "recent_only"]
-        ))
-        
-        self.register_action(ActionDefinition(
-            name="get_note",
-            description="Get a specific note by ID",
-            required_args=["note_id"],
+            required_args=["title", "content"],
             optional_args=[]
         ))
         
         self.register_action(ActionDefinition(
-            name="update_note",
-            description="Update a note",
-            required_args=["note_id"],
-            optional_args=["title", "content", "tags"]
+            name="read_note",
+            description="Read a specific note by title",
+            required_args=["title"],
+            optional_args=[]
+        ))
+        
+        self.register_action(ActionDefinition(
+            name="edit_note",
+            description="Edit a note's content",
+            required_args=["title", "content"],
+            optional_args=[]
         ))
         
         self.register_action(ActionDefinition(
             name="delete_note",
             description="Delete a note",
-            required_args=["note_id"],
+            required_args=["title"],
             optional_args=[]
         ))
         
         self.register_action(ActionDefinition(
-            name="search_notes",
-            description="Search notes by query",
-            required_args=["query"],
-            optional_args=["limit"]
+            name="list_notes",
+            description="List all notes",
+            required_args=[],
+            optional_args=["tag", "limit"]
+        ))
+        
+        # Todo-related actions
+        self.register_action(ActionDefinition(
+            name="add_todo",
+            description="Add item to todo list",
+            required_args=["item"],
+            optional_args=[]
         ))
         
         self.register_action(ActionDefinition(
-            name="get_tags",
-            description="Get all available tags",
+            name="show_todo",
+            description="Show todo list",
             required_args=[],
+            optional_args=[]
+        ))
+        
+        self.register_action(ActionDefinition(
+            name="clear_todo",
+            description="Clear todo list",
+            required_args=[],
+            optional_args=[]
+        ))
+        
+        self.register_action(ActionDefinition(
+            name="remove_todo_item",
+            description="Remove item from todo list",
+            required_args=["item_number"],
             optional_args=[]
         ))
         

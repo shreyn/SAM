@@ -142,11 +142,39 @@ class SAMBrain:
                 if content:
                     args['content'] = content
             
-            # Extract tags
-            if not self.task_state.collected_args.get('tags'):
-                tags = self._extract_tags_from_follow_up(message)
-                if tags:
-                    args['tags'] = tags
+            # If no specific extraction worked, try to infer based on missing args
+            if not args:
+                missing_args = self.task_state.missing_args
+                if 'content' in missing_args:
+                    # If we're missing content, treat the message as content
+                    args['content'] = message.strip()
+                elif 'title' in missing_args:
+                    # If we're missing title, treat the message as title
+                    args['title'] = message.strip()
+        
+        elif self.task_state.current_action == 'read_note':
+            # Extract title
+            if not self.task_state.collected_args.get('title'):
+                title = self._extract_note_title_from_follow_up(message)
+                if title:
+                    args['title'] = title
+            
+            # If no specific extraction worked, treat the message as title
+            if not args:
+                args['title'] = message.strip()
+        
+        elif self.task_state.current_action == 'edit_note':
+            # Extract title
+            if not self.task_state.collected_args.get('title'):
+                title = self._extract_note_title_from_follow_up(message)
+                if title:
+                    args['title'] = title
+            
+            # Extract content
+            if not self.task_state.collected_args.get('content'):
+                content = self._extract_note_content_from_follow_up(message)
+                if content:
+                    args['content'] = content
             
             # If no specific extraction worked, try to infer based on missing args
             if not args:
@@ -157,6 +185,22 @@ class SAMBrain:
                 elif 'title' in missing_args:
                     # If we're missing title, treat the message as title
                     args['title'] = message.strip()
+        
+        elif self.task_state.current_action == 'delete_note':
+            # Extract title
+            if not self.task_state.collected_args.get('title'):
+                title = self._extract_note_title_from_follow_up(message)
+                if title:
+                    args['title'] = title
+            
+            # If no specific extraction worked, treat the message as title
+            if not args:
+                args['title'] = message.strip()
+        
+        elif self.task_state.current_action == 'add_todo':
+            # Extract item
+            if not self.task_state.collected_args.get('item'):
+                args['item'] = message.strip()
         
         return args
     
@@ -269,18 +313,22 @@ class SAMBrain:
                 return self._execute_get_day(args)
             elif action_name == 'create_note':
                 return self._execute_create_note(args)
-            elif action_name == 'get_notes':
-                return self._execute_get_notes(args)
-            elif action_name == 'get_note':
-                return self._execute_get_note(args)
-            elif action_name == 'update_note':
-                return self._execute_update_note(args)
+            elif action_name == 'read_note':
+                return self._execute_read_note(args)
+            elif action_name == 'edit_note':
+                return self._execute_edit_note(args)
             elif action_name == 'delete_note':
                 return self._execute_delete_note(args)
-            elif action_name == 'search_notes':
-                return self._execute_search_notes(args)
-            elif action_name == 'get_tags':
-                return self._execute_get_tags(args)
+            elif action_name == 'list_notes':
+                return self._execute_list_notes(args)
+            elif action_name == 'add_todo':
+                return self._execute_add_todo(args)
+            elif action_name == 'show_todo':
+                return self._execute_show_todo(args)
+            elif action_name == 'clear_todo':
+                return self._execute_clear_todo(args)
+            elif action_name == 'remove_todo_item':
+                return self._execute_remove_todo_item(args)
             elif action_name == 'greeting':
                 return self._execute_greeting(args)
             else:
@@ -430,9 +478,11 @@ class SAMBrain:
     
     def _execute_create_note(self, args: Dict[str, Any]) -> str:
         """Execute create_note action"""
+        title = args.get('title', '')
         content = args.get('content', '')
-        title = args.get('title', 'Untitled Note')
-        tags = args.get('tags', [])
+        
+        if not title:
+            return "❌ Note title is required. Please provide a title for your note."
         
         if not content:
             return "❌ Note content is required. Please provide the content for your note."
@@ -440,133 +490,150 @@ class SAMBrain:
         # Create the note
         note = self.notes_service.create_note(
             title=title,
-            content=content,
-            tags=tags
+            content=content
         )
         
         if note:
-            return f"✅ Note '{note.title}' has been created with ID: {note.id}"
+            return f"The note '{note.title}' has been created."
         else:
             return "❌ Sorry, I couldn't create the note. Please try again."
     
-    def _execute_get_notes(self, args: Dict[str, Any]) -> str:
-        """Execute get_notes action"""
-        query = args.get('query')
-        tag = args.get('tag')
-        limit = args.get('limit')
-        recent_only = args.get('recent_only', False)
+    def _execute_read_note(self, args: Dict[str, Any]) -> str:
+        """Execute read_note action"""
+        title = args.get('title', '')
         
-        if query:
-            # Search notes
-            notes = self.notes_service.search_notes(query)
-        elif tag:
-            # Get notes by tag
-            notes = self.notes_service.get_notes_by_tag(tag)
-        elif recent_only:
-            # Get recent notes
-            notes = self.notes_service.get_recent_notes(limit or 5)
-        else:
-            # Get all notes
-            notes = self.notes_service.get_all_notes()
+        if not title:
+            return "❌ Note title is required. Please provide the title of the note you want to read."
         
-        if limit and not recent_only:
-            notes = notes[:limit]
-        
-        if not notes:
-            if query:
-                return f"No notes found matching '{query}'."
-            elif tag:
-                return f"No notes found with tag '{tag}'."
-            else:
-                return "You have no notes yet."
-        
-        return self.notes_service.format_notes_list(notes)
-    
-    def _execute_get_note(self, args: Dict[str, Any]) -> str:
-        """Execute get_note action"""
-        note_id = args.get('note_id')
-        
-        if not note_id:
-            return "❌ Note ID is required. Please provide the note ID."
-        
-        note = self.notes_service.get_note(note_id)
+        # Get the note by title
+        note = self.notes_service.get_note_by_title(title)
         
         if not note:
-            return f"❌ Note with ID '{note_id}' not found."
+            return f"❌ Note '{title}' not found."
         
-        return self.notes_service.format_note_for_display(note)
+        return f"The note '{note.title}' says: {note.content}"
     
-    def _execute_update_note(self, args: Dict[str, Any]) -> str:
-        """Execute update_note action"""
-        note_id = args.get('note_id')
-        title = args.get('title')
-        content = args.get('content')
-        tags = args.get('tags')
+    def _execute_edit_note(self, args: Dict[str, Any]) -> str:
+        """Execute edit_note action"""
+        title = args.get('title', '')
+        content = args.get('content', '')
         
-        if not note_id:
-            return "❌ Note ID is required. Please provide the note ID."
+        if not title:
+            return "❌ Note title is required. Please provide the title of the note you want to edit."
+        
+        if not content:
+            return "❌ New content is required. Please provide the new content for the note."
         
         # Check if note exists
-        note = self.notes_service.get_note(note_id)
+        note = self.notes_service.get_note_by_title(title)
         if not note:
-            return f"❌ Note with ID '{note_id}' not found."
+            return f"❌ Note '{title}' not found."
         
-        # Update the note
-        success = self.notes_service.update_note(
-            note_id=note_id,
-            title=title,
-            content=content,
-            tags=tags
-        )
+        # Edit the note
+        success = self.notes_service.edit_note(title, content)
         
         if success:
-            return f"✅ Note '{note_id}' has been updated successfully."
+            return f"✅ Note '{title}' has been updated successfully."
         else:
             return "❌ Sorry, I couldn't update the note. Please try again."
     
     def _execute_delete_note(self, args: Dict[str, Any]) -> str:
         """Execute delete_note action"""
-        note_id = args.get('note_id')
+        title = args.get('title', '')
         
-        if not note_id:
-            return "❌ Note ID is required. Please provide the note ID."
+        if not title:
+            return "❌ Note title is required. Please provide the title of the note you want to delete."
         
         # Check if note exists
-        note = self.notes_service.get_note(note_id)
+        note = self.notes_service.get_note_by_title(title)
         if not note:
-            return f"❌ Note with ID '{note_id}' not found."
+            return f"❌ Note '{title}' not found."
         
         # Delete the note
-        success = self.notes_service.delete_note(note_id)
+        success = self.notes_service.delete_note_by_title(title)
         
         if success:
-            return f"✅ Note '{note.title}' has been deleted successfully."
+            return f"I deleted the note '{title}'."
         else:
             return "❌ Sorry, I couldn't delete the note. Please try again."
     
-    def _execute_search_notes(self, args: Dict[str, Any]) -> str:
-        """Execute search_notes action"""
-        query = args.get('query')
+    def _execute_list_notes(self, args: Dict[str, Any]) -> str:
+        """Execute list_notes action"""
+        tag = args.get('tag')
         limit = args.get('limit')
         
-        if not query:
-            return "❌ Search query is required. Please provide what you want to search for."
+        # Get notes based on filters
+        if tag:
+            # Filter by tag
+            notes = self.notes_service.get_notes_by_tag(tag)
+            if not notes:
+                return f"You have no notes with the tag '{tag}'."
+        else:
+            # Get all notes
+            notes = self.notes_service.get_all_notes()
+            if not notes:
+                return "You have no notes yet."
         
-        notes = self.notes_service.search_notes(query)
-        
-        if limit:
+        # Apply limit if specified
+        if limit and isinstance(limit, int) and limit > 0:
             notes = notes[:limit]
         
-        if not notes:
-            return f"No notes found matching '{query}'."
+        # Format the response
+        if tag:
+            header = f"Notes with tag '{tag}':"
+        elif limit:
+            header = f"Your {len(notes)} most recent notes:"
+        else:
+            header = f"You have {len(notes)} total notes."
         
-        return self.notes_service.format_notes_list(notes)
+        # Use the existing formatting method from NotesService
+        formatted_notes = self.notes_service.format_notes_list(notes)
+        
+        return f"{header}\n{formatted_notes}"
     
-    def _execute_get_tags(self, args: Dict[str, Any]) -> str:
-        """Execute get_tags action"""
-        tags = self.notes_service.get_all_tags()
+    def _execute_add_todo(self, args: Dict[str, Any]) -> str:
+        """Execute add_todo action"""
+        item = args.get('item', '')
         
-        if not tags:
-            return "No tags found in your notes."
+        if not item:
+            return "❌ Todo item is required. Please provide what you want to add to your todo list."
         
-        return f"Available tags: {', '.join(tags)}" 
+        # Add the item to the todo list
+        success = self.notes_service.add_todo_item(item)
+        
+        if success:
+            return f"✅ Added '{item}' to your todo list."
+        else:
+            return "❌ Sorry, I couldn't add the item to your todo list. Please try again."
+    
+    def _execute_show_todo(self, args: Dict[str, Any]) -> str:
+        """Execute show_todo action"""
+        todo_note = self.notes_service.get_or_create_todo_note()
+        if not todo_note.content.strip():
+            return "You have no items in your to do list."
+        return f"Your todo list:\n{todo_note.content}"
+    
+    def _execute_clear_todo(self, args: Dict[str, Any]) -> str:
+        """Execute clear_todo action"""
+        # Clear the todo list
+        success = self.notes_service.clear_todo_list()
+        
+        if success:
+            return "✅ Your todo list has been cleared."
+        else:
+            return "❌ Sorry, I couldn't clear your todo list. Please try again."
+    
+    def _execute_remove_todo_item(self, args: Dict[str, Any]) -> str:
+        """Execute remove_todo_item action"""
+        item_number = args.get('item_number')
+        
+        if not item_number:
+            return "❌ Item number is required. Please specify which item to remove."
+        
+        # Remove the item from the todo list
+        success = self.notes_service.remove_todo_item(item_number)
+        
+        if success:
+            return f"✅ Removed item {item_number} from your todo list."
+        else:
+            return f"❌ Sorry, I couldn't remove item {item_number} from your todo list. Please try again." 

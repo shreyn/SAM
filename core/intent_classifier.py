@@ -31,11 +31,13 @@ class IntentClassifier:
                 r'\bwhat\b', r'\bshow\b', r'\btell\b', r'\bdo i have\b', 
                 r'\bare there\b', r'\bwhen\b', r'\bwhere\b', r'\bhow many\b',
                 r'\bnext\b', r'\bupcoming\b', r'\bmy\b', r'\bevents?\b',
-                r'\btime\b', r'\bdate\b', r'\bday\b'
+                r'\btime\b', r'\bdate\b', r'\bday\b', r'\bread\b', r'\bget\b', r'\bopen\b'
             ],
             'ACTION': [
                 r'\bcreate\b', r'\badd\b', r'\bmake\b', r'\bschedule\b', 
-                r'\bbook\b', r'\bset up\b', r'\bnew\b', r'\bstart\b'
+                r'\bbook\b', r'\bset up\b', r'\bnew\b', r'\bstart\b',
+                r'\bdelete\b', r'\bremove\b', r'\bedit\b', r'\bupdate\b',
+                r'\bmodify\b', r'\bchange\b', r'\bwrite\b', r'\blist\b', r'\bview\b'
             ],
             'GREETING': [
                 r'\bhi\b', r'\bhello\b', r'\bhey\b', r'\bgood morning\b',
@@ -58,15 +60,25 @@ class IntentClassifier:
             'get_day': [
                 r'\bday\b', r'\bwhat day\b', r'\bday of week\b'
             ],
-            'get_notes': [
-                r'\bnotes?\b', r'\bshow.*notes?\b', r'\bmy.*notes?\b', 
-                r'\ball.*notes?\b', r'\blist.*notes?\b'
+            'read_note': [
+                r'\bread.*note\b', r'\bopen.*note\b'
             ],
-            'search_notes': [
-                r'\bsearch.*notes?\b', r'\bfind.*notes?\b', r'\blook.*for.*notes?\b'
+            'list_notes': [
+                r'\blist.*notes?\b', r'\bshow.*notes?\b', r'\bwhat.*notes?\b', r'\bmy.*notes?\b',
+                r'\bget.*notes?\b', r'\bview.*notes?\b', r'\ball.*notes?\b'
             ],
-            'get_tags': [
-                r'\btags?\b', r'\bshow.*tags?\b', r'\ball.*tags?\b'
+            'clear_todo': [
+                r'\bclear.*my.*todo\b', r'\bclear.*my.*to.*do\b', r'\bclear.*todo\b', r'\bclear.*to.*do\b', r'\bempty.*todo\b'
+            ],
+            'add_todo': [
+                r'\badd.*todo\b', r'\badd.*to.*do\b'
+            ],
+            'remove_todo_item': [
+                r'\bremove.*item.*\d+\b', r'\bdelete.*item.*\d+\b'
+            ],
+            'show_todo': [
+                r'\bshow.*todo\b', r'\bview.*todo\b', r'\bget.*todo\b', r'\bmy.*todo\b',
+                r'\btodo.*list\b', r'\bto.*do.*list\b', r'\btodo\b', r'\bto\s*do\b', r'\bread.*to\s*do\b', r'\bread.*todo\b', r'\bread my to do\b', r'\bread my todo\b'
             ]
         }
         
@@ -76,16 +88,34 @@ class IntentClassifier:
                 r'\bevents?\b', r'\bmeetings?\b', r'\bappointments?\b'
             ],
             'create_task': [
-                r'\btasks?\b', r'\btodos?\b', r'\breminders?\b'
+                r'\bcreate.*tasks?\b', r'\bcreate.*todos?\b', r'\bcreate.*reminders?\b',
+                r'\bnew.*tasks?\b', r'\bnew.*todos?\b', r'\bnew.*reminders?\b'
             ],
             'create_note': [
-                r'\bnotes?\b', r'\bmemos?\b', r'\breminders?\b', r'\bwrite.*note\b'
+                r'\bcreate.*note\b', r'\bwrite.*note\b', r'\badd.*note\b', r'\bnew.*note\b',
+                r'\bnote.*titled\b', r'\bcreate.*titled\b'
             ],
-            'update_note': [
-                r'\bedit.*note\b', r'\bupdate.*note\b', r'\bmodify.*note\b'
+            'edit_note': [
+                r'\bedit.*note\b', r'\bupdate.*note\b', r'\bmodify.*note\b', r'\bchange.*note\b'
             ],
             'delete_note': [
-                r'\bdelete.*note\b', r'\bremove.*note\b', r'\btrash.*note\b'
+                r'\bdelete.*note\b', r'\bremove.*note\b', r'\btrash.*note\b', r'\bdel.*note\b'
+            ],
+            'list_notes': [
+                r'\blist.*notes?\b', r'\bview.*notes?\b'
+            ],
+            'add_todo': [
+                r'\badd.*todo\b', r'\badd.*to.*do\b'
+            ],
+            'clear_todo': [
+                r'\bclear.*my.*todo\b', r'\bclear.*my.*to.*do\b', r'\bclear.*todo\b', r'\bclear.*to.*do\b', r'\bempty.*todo\b'
+            ],
+            'remove_todo_item': [
+                r'\bremove.*item.*\d+\b', r'\bdelete.*item.*\d+\b'
+            ],
+            'show_todo': [
+                r'\bshow.*todo\b', r'\bview.*todo\b', r'\bget.*todo\b', r'\bmy.*todo\b',
+                r'\btodo.*list\b', r'\bto.*do.*list\b', r'\btodo\b', r'\bto\s*do\b', r'\bread.*to\s*do\b', r'\bread.*todo\b', r'\bread my to do\b', r'\bread my todo\b'
             ]
         }
     
@@ -253,6 +283,23 @@ class IntentClassifier:
                 args['start_time'] = time_info
         
         elif action == 'create_note':
+            # Extract title (similar to create_event pattern)
+            title = self._extract_note_title(query)
+            if title:
+                args['title'] = title
+            
+            # Extract content
+            content = self._extract_note_content(query)
+            if content:
+                args['content'] = content
+        
+        elif action == 'read_note':
+            # Extract title
+            title = self._extract_note_title(query)
+            if title:
+                args['title'] = title
+        
+        elif action == 'edit_note':
             # Extract title
             title = self._extract_note_title(query)
             if title:
@@ -262,23 +309,14 @@ class IntentClassifier:
             content = self._extract_note_content(query)
             if content:
                 args['content'] = content
-            
-            # Extract tags
-            tags = self._extract_tags(query)
-            if tags:
-                args['tags'] = tags
         
-        elif action == 'search_notes':
-            # Extract search query
-            query_text = self._extract_search_query(query)
-            if query_text:
-                args['query'] = query_text
+        elif action == 'delete_note':
+            # Extract title
+            title = self._extract_note_title(query)
+            if title:
+                args['title'] = title
         
-        elif action == 'get_notes':
-            # Extract filters
-            if 'recent' in query:
-                args['recent_only'] = True
-            
+        elif action == 'list_notes':
             # Extract tag filter
             tag = self._extract_tag_filter(query)
             if tag:
@@ -289,11 +327,17 @@ class IntentClassifier:
             if limit_match:
                 args['limit'] = int(limit_match.group(1))
         
-        elif action in ['update_note', 'delete_note', 'get_note']:
-            # Extract note ID
-            note_id = self._extract_note_id(query)
-            if note_id:
-                args['note_id'] = note_id
+        elif action == 'add_todo':
+            # Extract the item to add
+            item = self._extract_todo_item(query)
+            if item:
+                args['item'] = item
+        
+        elif action == 'remove_todo_item':
+            # Extract item number
+            number_match = re.search(r'(\d+)', query)
+            if number_match:
+                args['item_number'] = int(number_match.group(1))
         
         elif action in ['get_date', 'get_day']:
             # Extract target date/day
@@ -333,15 +377,15 @@ class IntentClassifier:
             r'named\s+([^,\s]+(?:\s+[^,\s]+)*?)(?:\s+(?:about|with|for|note|memo))?',
             r'titled\s+([^,\s]+(?:\s+[^,\s]+)*?)(?:\s+(?:about|with|for|note|memo))?',
             r'about\s+([^,\s]+(?:\s+[^,\s]+)*?)(?:\s+(?:note|memo))?',
+            r'note\s+([^,\s]+(?:\s+[^,\s]+)*?)(?:\s+(?:about|with|for|note|memo))?',
+            r'the\s+note\s+([^,\s]+(?:\s+[^,\s]+)*?)(?:\s+(?:about|with|for|note|memo))?',
         ]
-        
         for pattern in patterns:
             match = re.search(pattern, query, re.IGNORECASE)
             if match:
                 title = match.group(1).strip()
                 if title and title not in ['a', 'an', 'the', 'note', 'memo']:
                     return title
-        
         return None
     
     def _extract_note_content(self, query: str) -> Optional[str]:
@@ -434,5 +478,24 @@ class IntentClassifier:
                 note_id = match.group(1).strip()
                 if note_id:
                     return note_id
+        
+        return None
+    
+    def _extract_todo_item(self, query: str) -> Optional[str]:
+        """Extract todo item from query"""
+        # Look for item after "add" and "to my todo"
+        patterns = [
+            r'add\s+(.+?)\s+to\s+my\s+todo',
+            r'add\s+(.+?)\s+to\s+my\s+to\s+do',
+            r'add\s+(.+?)\s+to\s+todo',
+            r'add\s+(.+?)\s+to\s+to\s+do'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, query, re.IGNORECASE)
+            if match:
+                item = match.group(1).strip()
+                if item and len(item) > 0:
+                    return item
         
         return None 

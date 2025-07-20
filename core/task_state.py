@@ -96,6 +96,20 @@ class TaskState:
             'tags': "What tags should I add to this note?"
         }
         
+        # Override title question for note actions
+        if self.current_action == 'create_note':
+            questions['title'] = "What should I call this note?"
+        elif self.current_action == 'read_note':
+            questions['title'] = "What note do you want me to read?"
+        elif self.current_action == 'edit_note':
+            questions['title'] = "What note do you want me to edit?"
+        elif self.current_action == 'delete_note':
+            questions['title'] = "What note do you want me to delete?"
+        elif self.current_action == 'add_todo':
+            questions['item'] = "What would you like to add to your todo list?"
+        elif self.current_action == 'remove_todo_item':
+            questions['item_number'] = "Which item number would you like to remove?"
+        
         return questions.get(next_arg, f"What's the {next_arg.replace('_', ' ')}?")
     
     def reset(self):
