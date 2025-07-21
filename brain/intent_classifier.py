@@ -253,7 +253,6 @@ class IntentClassifier:
             # Check for "next event" (singular) - single next event
             if re.search(r'\bnext\s+event\b(?!\w)', query, re.IGNORECASE):
                 args['next_single'] = True
-                args['limit'] = 1
                 args['remaining_today'] = True  # Look for next event remaining today
             # Check for "next events" (plural) or "upcoming events" - remaining today
             elif re.search(r'\bnext\s+events\b', query, re.IGNORECASE) or re.search(r'\bupcoming\s+events?\b', query, re.IGNORECASE):

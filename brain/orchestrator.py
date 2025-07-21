@@ -367,19 +367,19 @@ class SAMBrain:
         # Format events for display using centralized formatter
         from utils.time_parser import format_datetime
         
-        if len(events) == 1:
+        if len(events) >= 1 and args.get('next_single'):
             event = events[0]
             formatted_time = format_datetime(event.start_time, 'event_display')
-            if args.get('next_single'):
-                return f"Your next event is '{event.title}' on {formatted_time}."
-            else:
-                return f"You have 1 event: '{event.title}' on {formatted_time}."
+            return f"Your next event is '{event.title}' on {formatted_time}."
+        elif len(events) == 1:
+            event = events[0]
+            formatted_time = format_datetime(event.start_time, 'event_display')
+            return f"You have 1 event: '{event.title}' on {formatted_time}."
         else:
             event_list = []
             for event in events:
                 formatted_time = format_datetime(event.start_time, 'event_display')
                 event_list.append(f"'{event.title}' on {formatted_time}")
-            
             # Generate appropriate header based on filter type
             if args.get('next_single'):
                 header = f"Your next event is:"
@@ -391,7 +391,6 @@ class SAMBrain:
                 header = f"You have {len(events)} events tomorrow:"
             else:
                 header = f"You have {len(events)} events:"
-            
             return f"{header}\n" + "\n".join(f"• {event}" for event in event_list)
     
     def _execute_get_time(self, args: Dict[str, Any]) -> str:

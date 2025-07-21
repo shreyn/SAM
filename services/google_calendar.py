@@ -206,15 +206,11 @@ class GoogleCalendarService:
             
             # Apply additional filters
             if filters:
-                if filters.get('limit'):
-                    calendar_events = calendar_events[:filters['limit']]
-                
                 # Filter for future events (for next event, upcoming events, etc.)
                 if filters.get('upcoming_only', False) or filters.get('next_single', False) or filters.get('remaining_today', False):
                     # Use the same 'now' value that was used for date range calculation
                     # Filter out events that have already started
                     calendar_events = [e for e in calendar_events if e.start_time > now]
-                
                 # Filter by specific date if requested
                 if filters.get('date') == 'today':
                     today = datetime.now().date()
@@ -222,6 +218,9 @@ class GoogleCalendarService:
                 elif filters.get('date') == 'tomorrow':
                     tomorrow = (datetime.now() + timedelta(days=1)).date()
                     calendar_events = [e for e in calendar_events if e.start_time.date() == tomorrow]
+                # Apply limit after filtering
+                if filters.get('limit'):
+                    calendar_events = calendar_events[:filters['limit']]
             
             return calendar_events
             
