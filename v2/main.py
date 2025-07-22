@@ -1,4 +1,5 @@
 from v2.brain.orchestrator import Orchestrator
+import time
 
 
 def main():
@@ -13,8 +14,11 @@ def main():
                 break
             if not user_input:
                 continue
+            start_time = time.time()  # Start timing
             response = orchestrator.process_user_input(user_input)
+            elapsed = (time.time() - start_time) * 1000  # ms
             print(f"🤖 SAM: {response}")
+            print(f"[DEBUG] Processing time: {elapsed:.1f} ms")
         except KeyboardInterrupt:
             print("\n👋 Goodbye! SAM v2 is shutting down.")
             break

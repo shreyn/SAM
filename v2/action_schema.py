@@ -29,11 +29,6 @@ ACTIONS = {
         "required_args": [],
         "optional_args": ["timezone"]
     },
-    "create_task": {
-        "description": "Create a new task",
-        "required_args": ["title"],
-        "optional_args": ["due_date", "priority", "description"]
-    },
     "create_note": {
         "description": "Create a new note",
         "required_args": ["title", "content"],
