@@ -1,0 +1,160 @@
+text,action
+Create a new event,create_event
+Schedule a meeting at 3 PM,create_event
+Add an event tomorrow at 9am,create_event
+Make a new event called lunch with Sarah,create_event
+Set up an appointment next Monday,create_event
+Add event,create_event
+New event,create_event
+Add to calendar,create_event
+Add event for 5pm today,create_event
+What are my upcoming events?,get_events
+Show my calendar events,get_events
+List my events,get_events
+Get events,get_events
+Show events for today,get_events
+What’s on my calendar?,get_events
+Display my schedule,get_events
+Upcoming events,get_events
+My meetings,get_events
+Show schedule,get_events
+What time is it?,get_time
+Tell me the current time,get_time
+Current time ,get_time
+Time now,get_time
+Time please,get_time
+Show me the time,get_time
+Clock,get_time
+Now time,get_time
+Time,get_time
+What's the time?,get_time
+What's the date today?,get_date
+Tell me today's date,get_date
+Current date,get_date
+Date today,get_date
+Show date,get_date
+What's the date?,get_date
+Date,get_date
+Today’s date,get_date
+Get date,get_date
+What date is it?,get_date
+What day is it today?,get_day
+Tell me the day of the week,get_day
+Current day,get_day
+Which day is it?,get_day
+Day of week,get_day
+Today’s day,get_day
+What day?,get_day
+Show day,get_day
+Day,get_day
+Day please,get_day
+Create a new note,create_note
+Write a note,create_note
+Add a note about groceries,create_note
+Note this down,create_note
+Make a note,create_note
+New note,create_note
+Take a note,create_note
+Create a note to buy milk,create_note
+Save note,create_note
+Add note,create_note
+Show note titled Meeting,read_note
+Read my note called Ideas,read_note
+Open note,read_note
+Display note,read_note
+Get note,read_note
+Read note 'Shopping List',read_note
+Show me 'Project plan' note,read_note
+Retrieve note,read_note
+Fetch note,read_note
+Read my note,read_note
+Edit the note titled Ideas,edit_note
+Update note called Shopping List,edit_note
+Change my note,edit_note
+Modify note,edit_note
+Revise note,edit_note
+Edit note,edit_note
+Update content of note,edit_note
+Edit my note,edit_note
+Change note content,edit_note
+Alter note,edit_note
+Delete the note titled Ideas,delete_note
+Remove note called Shopping List,delete_note
+Delete note,delete_note
+Erase note,delete_note
+Drop note,delete_note
+Delete my note,delete_note
+Remove a note,delete_note
+Delete note 'Ideas',delete_note
+Permanently delete note,delete_note
+Clear note,delete_note
+List all notes,list_notes
+Show my notes,list_notes
+Display notes,list_notes
+Get notes,list_notes
+List notes,list_notes
+What notes do I have?,list_notes
+Show me my notes,list_notes
+List my notes,list_notes
+List notes 5,list_notes
+Show notes,list_notes
+Add buy milk to my todo list,add_todo
+Create a todo item: call mom,add_todo
+New to do item,add_todo
+Add task,add_todo
+Add to-do,add_todo
+Add a task,add_todo
+Put in TODO,add_todo
+Todo: buy eggs,add_todo
+Add reminder,add_todo
+Add todo,add_todo
+Show my todo list,show_todo
+List todos,show_todo
+list my to do,show_todo
+List my to do,show_todo
+What are my todos?,show_todo
+Show todos,show_todo
+Read my to do,show_todo
+Show my to do,show_todo
+Display todo list,show_todo
+Read to do list,show_todo
+Clear my todo list,clear_todo
+Remove all todos,clear_todo
+Empty tasks,clear_todo
+Clear todos,clear_todo
+Delete all tasks,clear_todo
+Reset todo,clear_todo
+Clear tasks,clear_todo
+Clear to-do,clear_todo
+Empty todo list,clear_todo
+Clear all items,clear_todo
+Remove item 2 from todo list,remove_todo_item
+Delete todo number 1,remove_todo_item
+Remove todo 3,remove_todo_item
+Delete item 4,remove_todo_item
+Remove task 2,remove_todo_item
+Remove second todo,remove_todo_item
+Delete todo item,remove_todo_item
+Remove a todo,remove_todo_item
+Delete todo entry,remove_todo_item
+Remove todo item 5,remove_todo_item
+Hello,greeting
+Hi,greeting
+Hey,greeting
+Good morning,greeting
+Good evening,greeting
+Hey there,greeting
+Hi assistant,greeting
+Hello there,greeting
+Greetings,greeting
+Hey Sam,greeting
+Play some music,unknown
+What's the weather like?,unknown
+Tell me a joke,unknown
+Open the pod bay doors,unknown
+How do I bake a cake?,unknown
+Translate hello to Spanish,unknown
+Define erythrocyte,unknown
+Calculate 2+2,unknown
+Who won the game last night?,unknown
+Recommend a movie,unknown

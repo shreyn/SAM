@@ -70,7 +70,7 @@ class LLMInterface:
         Ask the LLM to generate a natural, concise follow-up question for the missing argument. Do not use quotes.
         """
         prompt = (
-            f"We still need the argument [{missing_arg}] for action [{action_name}]. "
+            f"2We still need the argument [{missing_arg}] for action [{action_name}]. "
             f"Given the current context: {context}, generate a natural, concise follow-up question to ask the user for this argument. "
             f"Do not use quotes, just output the question text."
         )
