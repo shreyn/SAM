@@ -1,0 +1,4 @@
+attempts/
+venv/
+sam_env/
+bert_slotfilling_model_attempt/
