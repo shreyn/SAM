@@ -1,6 +1,8 @@
 from typing import Dict, Any, Optional
 from v4.services.lightweight_llm import LightweightLLM
 from v4.action_schema import ACTIONS
+import time
+from v4.utils.slotfilling_logger import log_slotfilling_event
 
 class LLMInterface:
     """
@@ -17,19 +19,11 @@ class LLMInterface:
         args_str = ', '.join(action_args)
         examples = (
             "Examples:\n"
-            # Event
+            # Positive
             "- User prompt: 'create an event called studying at 9 pm tomorrow'\n"
             "  Output: {\"title\": \"studying\", \"start_time\": \"9 pm tomorrow\"}\n"
-            # Note
-            "- User prompt: 'create a note titled project ideas with content about AI'\n"
-            "  Output: {\"title\": \"project ideas\", \"content\": \"about AI\"}\n"
-            # Todo
-            "- User prompt: 'add buy milk to my todo list'\n"
-            "  Output: {\"item\": \"buy milk\"}\n"
             # Negative/ambiguous
             "- User prompt: 'create a new note'\n"
-            "  Output: {}\n"
-            "- User prompt: 'add something'\n"
             "  Output: {}\n"
         )
         prompt = (
@@ -41,16 +35,28 @@ class LLMInterface:
             f"{examples}"
             f"User prompt: {user_prompt}"
         )
+        start_time = time.time()
         response = self.llm.generate_response(prompt)
+        elapsed = (time.time() - start_time) * 1000
         print(f"[DEBUG] LLM raw response for extract_arguments: {response}")
+        print(f"[TIMING] LLM arg extraction took {elapsed:.1f} ms")
         try:
-            import json
-            parsed = json.loads(response)
-            print(f"[DEBUG] Parsed dict from extract_arguments: {parsed}")
-            return parsed
+            import json as _json
+            args = _json.loads(response)
         except Exception as e:
-            print(f"[DEBUG] Exception parsing LLM response in extract_arguments: {e}")
-            return {}
+            print(f"[DEBUG] Exception parsing LLM response: {e}")
+            args = {}
+        # --- LOGGING ---
+        log_slotfilling_event({
+            'event_type': 'extract_arguments',
+            'user_prompt': user_prompt,
+            'action_name': action_name,
+            'required_args': ACTIONS[action_name]["required_args"],
+            'optional_args': ACTIONS[action_name]["optional_args"],
+            'llm_args_output': args,
+            'llm_raw_response': response
+        })
+        return args
 
     def generate_followup_question(self, missing_arg: str, action_name: str) -> str:
         """
@@ -60,8 +66,6 @@ class LLMInterface:
             "Examples:\n"
             "- Missing argument: title (for create_note) → What should the note be called?\n"
             "- Missing argument: content (for create_note) → What should the note say?\n"
-            "- Missing argument: item (for add_todo) → What would you like to add to your todo list?\n"
-            "- Missing argument: start_time (for create_event) → When should the event start?\n"
         )
         prompt = (
             f"You need to ask the user for the missing argument [{missing_arg}] for action [{action_name}]. "
@@ -70,17 +74,14 @@ class LLMInterface:
         )
         return self.llm.generate_response(prompt).strip()
 
-    def extract_argument_from_reply(self, reply: str, arg_name: str) -> Optional[Any]:
+    def extract_argument_from_reply(self, reply: str, arg_name: str, action_name: str) -> Optional[Any]:
         """
         Extract a value for a missing argument from the user's reply. Includes diverse examples and explicit instructions.
         """
         examples = (
             "Examples:\n"
             "- User reply: 'studying' → 'studying'\n"
-            "- User reply: 'call it project ideas' → 'project ideas'\n"
-            "- User reply: 'buy milk' → 'buy milk'\n"
             "- User reply: 'the name is new' → null\n"
-            "- User reply: 'something' → null\n"
         )
         prompt = (
             f"You are extracting the value for argument [{arg_name}]. "
@@ -89,11 +90,14 @@ class LLMInterface:
             f"{examples}"
             f"User reply: {reply}"
         )
+        start_time = time.time()
         response = self.llm.generate_response(prompt)
+        elapsed = (time.time() - start_time) * 1000
         print(f"[DEBUG] LLM raw response for arg '{arg_name}': {response}")
+        print(f"[TIMING] LLM arg extraction (follow-up) took {elapsed:.1f} ms")
         try:
-            import json
-            value = json.loads(response)
+            import json as _json
+            value = _json.loads(response)
             # If the LLM returns a dict, extract the value for arg_name
             if isinstance(value, dict):
                 value = value.get(arg_name)
@@ -102,8 +106,33 @@ class LLMInterface:
                 value = value.strip('"\' ')
             print(f"[DEBUG] Parsed value for arg '{arg_name}': {value}")
             if value is None or (isinstance(value, str) and not value.strip()):
+                log_slotfilling_event({
+                    'event_type': 'extract_argument_from_reply',
+                    'user_reply': reply,
+                    'arg_name': arg_name,
+                    'action_name': action_name,
+                    'llm_arg_value': None,
+                    'llm_raw_response': response
+                })
                 return None
+            log_slotfilling_event({
+                'event_type': 'extract_argument_from_reply',
+                'user_reply': reply,
+                'arg_name': arg_name,
+                'action_name': action_name,
+                'llm_arg_value': value,
+                'llm_raw_response': response
+            })
             return value
         except Exception as e:
             print(f"[DEBUG] Exception parsing LLM response for arg '{arg_name}': {e}")
+            log_slotfilling_event({
+                'event_type': 'extract_argument_from_reply',
+                'user_reply': reply,
+                'arg_name': arg_name,
+                'action_name': action_name,
+                'llm_arg_value': None,
+                'llm_raw_response': response,
+                'error': str(e)
+            })
             return None 

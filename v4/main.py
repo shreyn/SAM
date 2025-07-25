@@ -84,7 +84,7 @@ def main():
                             else:
                                 # Non-interrupting command: re-ask the question
                                 continue
-                        value = llm_interface.extract_argument_from_reply(user_reply, missing_arg)
+                        value = llm_interface.extract_argument_from_reply(user_reply, missing_arg, action_name)
                         if value is not None and (not isinstance(value, str) or value.strip()):
                             collected_args[missing_arg] = value
                             missing_args = [arg for arg in required_args if arg not in collected_args]

@@ -27,7 +27,7 @@ class Orchestrator:
             missing_arg = self.session.get_next_missing_arg()
             if not missing_arg:
                 return "Unexpected state: no missing arguments."
-            value = self.llm.extract_argument_from_reply(user_input, missing_arg)
+            value = self.llm.extract_argument_from_reply(user_input, missing_arg, self.session.action_name)
             if value is not None and (not isinstance(value, str) or value.strip()):
                 self.session.update_argument(missing_arg, value)
                 self.session.add_history(user_input)
