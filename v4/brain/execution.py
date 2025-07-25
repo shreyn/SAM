@@ -21,6 +21,9 @@ def execute_action(action_name, args):
         else:
             return "Failed to create event."
     elif action_name == "get_events":
+        # Default to today's events if no args or no date filter is provided
+        if not args or not any(k in args for k in ["date", "upcoming_only", "remaining_today", "next_single", "limit"]):
+            args = {"date": "today"}
         events = calendar_service.get_events(args)
         if not events:
             return "No events found."

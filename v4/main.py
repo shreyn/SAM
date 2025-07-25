@@ -64,7 +64,7 @@ def main():
                 optional_args = ACTIONS[action_name]["optional_args"]
                 # --- Argument Extraction ---
                 collected_args = {}
-                if required_args:
+                if required_args or optional_args:
                     extracted_args = llm_interface.extract_arguments(user_input, action_name)
                     collected_args = {k: v for k, v in extracted_args.items() if v is not None}
                     # --- Slot-filling loop ---

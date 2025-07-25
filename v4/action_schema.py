@@ -17,17 +17,17 @@ ACTIONS = {
     "get_time": {
         "description": "Tell the user the current time.",
         "required_args": [],
-        "optional_args": ["timezone"]
+        "optional_args": []
     },
     "get_date": {
         "description": "Tell the user today's date.",
         "required_args": [],
-        "optional_args": ["format", "timezone"]
+        "optional_args": []
     },
     "get_day": {
         "description": "Tell the user the current day of the week.",
         "required_args": [],
-        "optional_args": ["timezone"]
+        "optional_args": []
     },
     "create_note": {
         "description": "Create a new note with a specific title and content. Notes are for storing information, ideas, or reminders that are not part of your todo list.",
