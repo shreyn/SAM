@@ -1,0 +1,194 @@
+from v5.brain.orchestrator import Orchestrator
+from v5.brain.llm_interface import LLMInterface
+from v5.utils.intent_classifier import IntentClassifier
+from v5.action_schema import ACTIONS
+import time
+import joblib
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+from sentence_transformers import SentenceTransformer
+import sys
+from v5.commands.registry import get_command_handler
+
+# Load the new simple action classifier and label encoder
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'models', 'simple_action_classifier.joblib')
+LABEL_ENCODER_PATH = os.path.join(os.path.dirname(__file__), 'models', 'simple_action_label_encoder.joblib')
+EMBEDDING_MODEL_NAME = 'all-MiniLM-L6-v2'
+simple_action_clf = joblib.load(MODEL_PATH)
+simple_action_le = joblib.load(LABEL_ENCODER_PATH)
+simple_action_embedder = SentenceTransformer(EMBEDDING_MODEL_NAME)
+
+# --- Mode selector and config ---
+MODE = None  # 'text' or 'voice'
+
+def select_mode():
+    global MODE
+    if len(sys.argv) > 1 and sys.argv[1] in ["--mode=text", "--mode=voice"]:
+        MODE = sys.argv[1].split("=")[1]
+    else:
+        print("Select mode: [1] Text  [2] Voice")
+        choice = input("Enter 1 or 2: ").strip()
+        if choice == "2":
+            MODE = "voice"
+        else:
+            MODE = "text"
+    print(f"[INFO] Running in {MODE.upper()} mode.")
+
+# --- Input/Output abstraction ---
+def get_user_input_with_command_check_text(prompt, orchestrator):
+    while True:
+        user_input = input(prompt).strip()
+        command_entry = get_command_handler(user_input)
+        if command_entry:
+            handler = command_entry["handler"]
+            interrupting = command_entry["interrupting"]
+            # Call with session if needed
+            if handler.__name__ == 'handle_cancel':
+                result = handler(orchestrator.session)
+            else:
+                result = handler()
+            if result and result.message:
+                print(result.message)
+            return result  # Always return CommandResult for commands
+        return user_input
+
+# Placeholder for future STT integration
+def get_user_input_with_command_check_voice(prompt, orchestrator):
+    print("[VOICE] Listening for your command... (STT placeholder)")
+    # TODO: Replace with actual STT
+    user_input = input("(Simulated voice input) You: ").strip()
+    # Optionally, reuse command check logic
+    command_entry = get_command_handler(user_input)
+    if command_entry:
+        handler = command_entry["handler"]
+        interrupting = command_entry["interrupting"]
+        if handler.__name__ == 'handle_cancel':
+            result = handler(orchestrator.session)
+        else:
+            result = handler()
+        if result and result.message:
+            print(result.message)
+        return result
+    return user_input
+
+def output_response_text(response):
+    print(f"🤖 SAM: {response}")
+
+tts_engine = None
+def output_response_voice(response):
+    global tts_engine
+    if tts_engine is None:
+        from v5.TTS.tts_engine import LocalTTSEngine
+        tts_engine = LocalTTSEngine(speaker="p273", speed=1.1)
+    tts_engine.speak(response)
+
+def get_user_input_with_command_check(prompt, orchestrator):
+    if MODE == "voice":
+        return get_user_input_with_command_check_voice(prompt, orchestrator)
+    else:
+        return get_user_input_with_command_check_text(prompt, orchestrator)
+
+def output_response(response):
+    if MODE == "voice":
+        output_response_voice(response)
+    else:
+        output_response_text(response)
+
+
+def main():
+    select_mode()
+    if MODE == "voice":
+        print("Sam is running in voice mode. Debug and extra output will be suppressed.")
+    else:
+        print("🤖 Sam v5 - LLM-Driven Assistant with Intent Classifier")
+        print("Type 'quit' or 'exit' to stop.")
+    import time
+    t0 = time.time()
+    orchestrator = Orchestrator()
+    print(f"[TIMING] Orchestrator loaded in {time.time() - t0:.2f} seconds")
+    t1 = time.time()
+    llm_interface = LLMInterface()
+    print(f"[TIMING] LLMInterface loaded in {time.time() - t1:.2f} seconds")
+    t2 = time.time()
+    intent_classifier = IntentClassifier()
+    print(f"[TIMING] IntentClassifier loaded in {time.time() - t2:.2f} seconds")
+    while True:
+        try:
+            user_input = get_user_input_with_command_check("\n👤 You: ", orchestrator)
+            if user_input is None:
+                continue
+            if isinstance(user_input, str) and user_input.lower() in ["quit", "exit", "bye"]:
+                output_response("Goodbye! Sam v5 is shutting down.")
+                break
+            if not user_input:
+                continue
+            start_time = time.time()  # Start timing
+            # --- Intent Classification ---
+            intent, probs = intent_classifier.classify(user_input)
+            if MODE == "text":
+                print(f"[DEBUG] Intent: {intent} | Probabilities: {probs}")
+            # --- Routing ---
+            if intent == "simple":
+                # --- ML-based Action Classification ---
+                emb = simple_action_embedder.encode([user_input])
+                pred = simple_action_clf.predict(emb)[0]
+                action_name = simple_action_le.inverse_transform([pred])[0]
+                if MODE == "text":
+                    print(f"[DEBUG] Predicted action: {action_name}")
+                required_args = ACTIONS[action_name]["required_args"]
+                optional_args = ACTIONS[action_name]["optional_args"]
+                # --- Argument Extraction ---
+                collected_args = {}
+                if required_args or optional_args:
+                    extracted_args = llm_interface.extract_arguments(user_input, action_name)
+                    collected_args = {k: v for k, v in extracted_args.items() if v is not None}
+                    # --- Slot-filling loop ---
+                    missing_args = [arg for arg in required_args if arg not in collected_args]
+                    aborted = False
+                    while missing_args:
+                        missing_arg = missing_args[0]
+                        followup_q = llm_interface.generate_followup_question(missing_arg, action_name)
+                        output_response(followup_q)
+                        user_reply = get_user_input_with_command_check("👤 You: ", orchestrator)
+                        from v5.commands.handlers import CommandResult
+                        if isinstance(user_reply, CommandResult):
+                            if user_reply.abort:
+                                # Interrupting command: abort the task
+                                aborted = True
+                                break
+                            else:
+                                # Non-interrupting command: re-ask the question
+                                continue
+                        value = llm_interface.extract_argument_from_reply(user_reply, missing_arg, action_name)
+                        if value is not None and (not isinstance(value, str) or value.strip()):
+                            collected_args[missing_arg] = value
+                            missing_args = [arg for arg in required_args if arg not in collected_args]
+                        else:
+                            if MODE == "text":
+                                print(f"[DEBUG] Extraction failed, re-asking.")
+                    if aborted:
+                        continue
+                # --- Execute Action ---
+                from v5.brain.execution import execute_action
+                result = execute_action(action_name, collected_args)
+                response = result
+            elif intent == "query":
+                response = llm_interface.llm.generate_general_response(user_input)
+            elif intent == "agent":
+                # For now, fallback to orchestrator (could be replaced with agentic pipeline)
+                response = orchestrator.process_user_input(user_input)
+            else:
+                response = "Sorry, I couldn't classify your request."
+            elapsed = (time.time() - start_time) * 1000  # ms
+            output_response(response)
+            if MODE == "text":
+                print(f"[DEBUG] Processing time: {elapsed:.1f} ms")
+        except KeyboardInterrupt:
+            output_response("Goodbye! Sam v5 is shutting down.")
+            break
+        except Exception as e:
+            output_response(f"Error: {e}")
+
+
+if __name__ == "__main__":
+    main() 
