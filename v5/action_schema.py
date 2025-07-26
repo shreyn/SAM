@@ -52,7 +52,7 @@ ACTIONS = {
     "list_notes": {
         "description": "List all personal notes you have created, optionally limiting the number shown. Notes are separate from your todo list.",
         "required_args": [],
-        "optional_args": ["limit"]
+        "optional_args": []
     },
     "add_todo": {
         "description": "Add a new task or item to your todo list. The todo list is for things you need to do, not for storing general notes.",

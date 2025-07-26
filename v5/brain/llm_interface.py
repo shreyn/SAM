@@ -40,6 +40,7 @@ class LLMInterface:
         elapsed = (time.time() - start_time) * 1000
         print(f"[DEBUG] LLM raw response for extract_arguments: {response}")
         print(f"[TIMING] LLM arg extraction took {elapsed:.1f} ms")
+        print(f"[SLOTFILLING-TIMING] extract_arguments for action '{action_name}' took {elapsed:.1f} ms")
         try:
             import json as _json
             args = _json.loads(response)
@@ -58,21 +59,34 @@ class LLMInterface:
         })
         return args
 
+    # --- Hardcoded follow-up question templates ---
+    FOLLOWUP_TEMPLATES = {
+        ("create_note", "title"): "What should the note be called?",
+        ("create_note", "content"): "What should the note say?",
+        ("create_event", "title"): "What is the title of the event?",
+        ("create_event", "start_time"): "When should the event start?",
+        ("create_event", "duration"): "How long will the event last?",
+        ("create_event", "description"): "What is the description of the event?",
+        ("create_event", "location"): "Where will the event take place?",
+        ("create_event", "date"): "On what date should the event be scheduled?",
+        ("add_todo", "item"): "What would you like to add to your to-do list?",
+        ("read_note", "title"): "What is the title of the note you want to read?",
+        ("edit_note", "title"): "What is the title of the note you want to edit?",
+        ("edit_note", "content"): "What should the updated note say?",
+        ("delete_note", "title"): "What is the title of the note you want to delete?",
+        ("remove_todo_item", "item_number"): "Which item number would you like to remove from your to-do list?",
+        # Add more as needed
+    }
+
     def generate_followup_question(self, missing_arg: str, action_name: str) -> str:
         """
-        Generate a concise, natural follow-up question for a missing argument, with one example per action type.
+        Generate a natural follow-up question for a missing argument using hardcoded templates.
         """
-        examples = (
-            "Examples:\n"
-            "- Missing argument: title (for create_note) → What should the note be called?\n"
-            "- Missing argument: content (for create_note) → What should the note say?\n"
-        )
-        prompt = (
-            f"You need to ask the user for the missing argument [{missing_arg}] for action [{action_name}]. "
-            f"Generate a concise, natural follow-up question. Do not use quotes.\n"
-            f"{examples}"
-        )
-        return self.llm.generate_response(prompt).strip()
+        question = self.FOLLOWUP_TEMPLATES.get((action_name, missing_arg))
+        if question:
+            return question
+        # Fallback to a generic but natural template
+        return f"What should the {missing_arg.replace('_', ' ')} be?"
 
     def extract_argument_from_reply(self, reply: str, arg_name: str, action_name: str) -> Optional[Any]:
         """

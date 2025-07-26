@@ -45,7 +45,12 @@ class GoogleCalendarService:
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.token_path = os.path.join(base_dir, 'data', 'token.pickle')
         self.creds_path = os.path.join(base_dir, 'data', 'credentials.json')
-        self._authenticate()
+        # Don't authenticate immediately - do it lazily when needed
+    
+    def _ensure_authenticated(self):
+        """Ensure the service is authenticated before use"""
+        if self.service is None:
+            self._authenticate()
     
     def _authenticate(self):
         """Authenticate with Google Calendar API"""
@@ -87,6 +92,7 @@ class GoogleCalendarService:
     
     def get_events(self, filters: Dict[str, Any] = None) -> List[CalendarEvent]:
         """Get events from Google Calendar with optional filters"""
+        self._ensure_authenticated()
         if not self.service:
             print("Google Calendar service not available")
             return []
@@ -235,6 +241,7 @@ class GoogleCalendarService:
     
     def create_event(self, title: str, start_time: str, description: str = None, location: str = None) -> bool:
         """Create a new event in Google Calendar"""
+        self._ensure_authenticated()
         if not self.service:
             print("Google Calendar service not available")
             return False

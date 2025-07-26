@@ -9,6 +9,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 from sentence_transformers import SentenceTransformer
 import sys
 from v5.commands.registry import get_command_handler
+from concurrent.futures import ThreadPoolExecutor
 
 # Load the new simple action classifier and label encoder
 MODEL_PATH = os.path.join(os.path.dirname(__file__), 'models', 'simple_action_classifier.joblib')
@@ -53,11 +54,16 @@ def get_user_input_with_command_check_text(prompt, orchestrator):
         return user_input
 
 # Placeholder for future STT integration
+stt = None  # Global VoskSTT instance for voice mode
 def get_user_input_with_command_check_voice(prompt, orchestrator):
-    print("[VOICE] Listening for your command... (STT placeholder)")
-    # TODO: Replace with actual STT
-    user_input = input("(Simulated voice input) You: ").strip()
-    # Optionally, reuse command check logic
+    global stt
+    print(prompt)
+    print("[VOICE] Listening for your command...")
+    user_input = stt.listen_and_transcribe()  # Do not pass prompt as audio
+    if not user_input:
+        print("[VOICE] No speech detected. Please try again.")
+        return None
+    print(f"[VOICE] You said: {user_input}")
     command_entry = get_command_handler(user_input)
     if command_entry:
         handler = command_entry["handler"]
@@ -96,22 +102,76 @@ def output_response(response):
 
 
 def main():
+    global stt, tts_engine
     select_mode()
     if MODE == "voice":
+        # Suppress Vosk verbose logging in voice mode
+        import logging
+        logging.getLogger('vosk').setLevel(logging.CRITICAL)
+        # Also suppress any other verbose loggers
+        logging.getLogger('VoskAPI').setLevel(logging.CRITICAL)
+        logging.getLogger('kaldi').setLevel(logging.CRITICAL)
+        
+        from v5.STT.vosk_stt import VoskSTT
+        stt = VoskSTT()
         print("Sam is running in voice mode. Debug and extra output will be suppressed.")
     else:
         print("🤖 Sam v5 - LLM-Driven Assistant with Intent Classifier")
         print("Type 'quit' or 'exit' to stop.")
     import time
-    t0 = time.time()
-    orchestrator = Orchestrator()
-    print(f"[TIMING] Orchestrator loaded in {time.time() - t0:.2f} seconds")
-    t1 = time.time()
-    llm_interface = LLMInterface()
-    print(f"[TIMING] LLMInterface loaded in {time.time() - t1:.2f} seconds")
-    t2 = time.time()
-    intent_classifier = IntentClassifier()
-    print(f"[TIMING] IntentClassifier loaded in {time.time() - t2:.2f} seconds")
+    loaders = {}
+    def load_calendar():
+        t = time.time()
+        from v5.services.google_calendar import GoogleCalendarService
+        obj = GoogleCalendarService()
+        if MODE == "text":
+            print(f"[TIMING] GoogleCalendarService loaded in {time.time() - t:.2f} seconds")
+        return obj
+    def load_llm():
+        t = time.time()
+        from v5.brain.llm_interface import LLMInterface
+        obj = LLMInterface()
+        # Pre-warm LLM
+        _ = obj.llm.generate_response("Hello, Sam is warming up.")
+        if MODE == "text":
+            print(f"[TIMING] LLMInterface loaded and pre-warmed in {time.time() - t:.2f} seconds")
+        return obj
+    def load_tts():
+        t = time.time()
+        from v5.TTS.tts_engine import LocalTTSEngine
+        obj = LocalTTSEngine(speaker="p273", speed=1.1)
+        # Suppress TTS verbose output in voice mode
+        if MODE == "voice":
+            obj.speak("Warming up.", play=False)
+        else:
+            obj.speak("Warming up.", play=False)
+            print(f"[TIMING] TTS engine loaded and pre-warmed in {time.time() - t:.2f} seconds")
+        return obj
+    def load_intent_classifier():
+        t = time.time()
+        from v5.utils.intent_classifier import IntentClassifier
+        obj = IntentClassifier()
+        if MODE == "text":
+            print(f"[TIMING] IntentClassifier loaded in {time.time() - t:.2f} seconds")
+        return obj
+    with ThreadPoolExecutor() as executor:
+        futures = {
+            'calendar_service': executor.submit(load_calendar),
+            'llm_interface': executor.submit(load_llm),
+            'intent_classifier': executor.submit(load_intent_classifier)
+        }
+        if MODE == "voice":
+            futures['tts_engine'] = executor.submit(load_tts)
+        results = {}
+        for name, future in futures.items():
+            results[name] = future.result()
+    calendar_service = results['calendar_service']
+    llm_interface = results['llm_interface']
+    intent_classifier = results['intent_classifier']
+    tts_engine = results['tts_engine'] if MODE == "voice" else None
+    t_orch = time.time()
+    orchestrator = Orchestrator(llm_interface)
+    print(f"[TIMING] Orchestrator loaded in {time.time() - t_orch:.2f} seconds")
     while True:
         try:
             user_input = get_user_input_with_command_check("\n👤 You: ", orchestrator)

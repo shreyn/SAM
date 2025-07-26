@@ -5,9 +5,9 @@ from v5.brain.execution import execute_action
 from v5.commands.registry import get_command_handler
 
 class Orchestrator:
-    def __init__(self):
+    def __init__(self, llm_interface):
         self.session = SessionState()
-        self.llm = LLMInterface()
+        self.llm = llm_interface
 
     def process_user_input(self, user_input: str) -> str:
         # Command detection in follow-up mode

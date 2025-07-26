@@ -1,75 +1,40 @@
-# SAM v4 — Fast, Accurate, and Data-Driven AI Assistant
+# SAM v5 — Current State and Improvements
 
-## Overview
+# [NOTES FOR FUTURE README REWRITE]
+- The main goal of v5 is to build a natural, fast, and robust **voice interface** for SAM.
+- This includes:
+  - Making the assistant's responses sound super natural and human-like.
+  - Integrating TTS (Text-to-Speech) for voice output (already implemented).
+  - Planning for STT (Speech-to-Text) for voice input (coming soon).
+- All optimizations (slot-filling speed, hardcoded follow-ups, etc.) are in service of making the voice experience seamless and real-time.
+- v5 is the "voice-first" version: everything is designed to make talking to SAM as smooth as possible.
 
-SAM v4 addresses the key limitations of v3 by introducing a fast ML-based action classifier and comprehensive slot-filling logging. This version maintains the reliability of LLM-driven slot-filling while dramatically improving speed and setting up for future ML-based improvements.
+# (End notes)
 
----
+## Recent Changes and Rationale
 
-## v3 Limitations and v4 Solutions
+### 1. **Slot-Filling Timing Analysis**
+- Added detailed timing logs to measure time spent on LLM-based argument extraction (`extract_arguments`) and follow-up question generation (`generate_followup_question`).
+- This helps identify bottlenecks and optimize the user experience by pinpointing where delays occur in the slot-filling process.
 
-### Problem 1: Innaccurate Action Classification
-**v3 Limitation:** Used cosine similarity over sentence embeddings for action selection, which was faster but lacked nuance detection (frequent incorrect classifications).
+### 2. **Slot-Filling Inefficiency Analysis**
+- Reviewed the slot-filling flow and found that LLM calls for follow-up questions are slow and unnecessary, as these questions are formulaic and can be templated.
+- Identified that failed JSON parsing of LLM responses can lead to unnecessary follow-up questions and reduced efficiency.
 
-**v4 Solution:** Implemented a fast ML classifier (logistic regression) that:
-- Runs in ~30ms 
-- Achieves near-perfect accuracy on real usage
-- Uses minimal training data (just 20-30 examples per action)
+### 3. **Hardcoded Follow-up Questions**
+- Replaced LLM-based follow-up question generation with hardcoded, natural-sounding templates for each action/argument pair.
+- This change eliminates LLM latency for follow-up questions, making the assistant more responsive and consistent.
+- For arguments without a custom template, a generic but natural fallback is used.
 
-### Problem 2: Slow Slot-Filling
-**v3 Limitation:** Used the large LLM for argument extraction, resulting in ~2000ms response times.
+### 4. **General Philosophy**
+- Use LLMs only where their generative power is truly needed (e.g., argument extraction from complex user input).
+- Use fast, deterministic logic (templates, regex, ML classifiers) for everything else to maximize speed and reliability.
 
-**v4 Attempts:**
-1. **Smaller LLM (Phi):** Still too slow (~1500ms)
-2. **BERT Model Training:** Failed due to data quality issues:
-   - Is insanely brittle (need alot of diverse training data)
-   - Required massive amounts of training data (manual data creation is impractical)
-   - LLM-generated data was inconsistent and error-prone
-
-**v4 Solution:** Comprehensive logging strategy for future ML training:
-- Logs every slot-filling interaction (user prompt, action, LLM output)
-- Captures my own real behavior and language patterns
-- Maintains current LLM reliability while building dataset, with the goal of replacing the LLM eventually
-
----
-
-### Data Flow
-1. User input → ML intent classifier (simple vs. query vs. agent) → ML action classifier
-2. Action selected → LLM slot-filling with logging
-3. Missing args → Follow-up questions with logging
-4. Action execution → Service integration
+## Next Steps
+- Consider further reducing LLM reliance for argument extraction by using heuristics or lightweight models for common argument types.
+- Continue to monitor timing logs to guide future optimizations.
 
 ---
 
-## Future Plans
-
-### ML Slot-Filling (Future)
-- Train slot-filling models on collected real data
-- Achieve sub-100ms slot-filling while maintaining accuracy
-- Gradual transition from LLM to ML-based extraction
-
----
-
-## Files and Structure
-
-```
-v4/
-├── brain/                 # Core logic and orchestration
-├── commands/             # Action handlers and registry
-├── data/                 # Logs and persistent data
-├── models/               # Trained ML models
-├── scripts/              # Training and testing scripts
-├── services/             # External service integrations
-├── utils/                # Utilities including logging
-└── main.py              # Entry point
-```
-
----
-
-## Lessons Learned
-
-1. **ML for Classification:** Small, focused ML models can dramatically outperform similarity-based approaches
-2. **Data Quality Matters:** LLM-generated training data is unreliable
-3. **Real Data is King:** Authentic user interactions provide the best training data
-4. **Logging is Investment:** Comprehensive logging enables future improvements without disrupting current functionality
+**This README reflects the current state of SAM v5, focusing on speed, efficiency, and a pragmatic use of LLMs.**
 
