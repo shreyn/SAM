@@ -98,9 +98,11 @@ def execute_action(action_name, args):
             return "You don't have any notes yet."
         note_titles = [note.title for note in notes]
         if len(notes) == 1:
-            return f"You have 1 note. {note_titles[0]}."
+            return f"1. {note_titles[0]}"
         else:
-            return f"You have {len(notes)} notes. {format_list_natural(note_titles)}."
+            # Return numbered list for easier parsing
+            numbered_list = "\n".join([f"{i+1}. {title}" for i, title in enumerate(note_titles)])
+            return numbered_list
     elif action_name == "add_todo":
         item = args.get("item")
         success = notes_service.add_todo_item(item)
@@ -112,12 +114,8 @@ def execute_action(action_name, args):
         todo_note = notes_service.get_or_create_todo_note()
         if not todo_note.content.strip():
             return "Your to-do list is empty."
-        # Format todo list as a natural sentence
-        items = [line.split('. ', 1)[1] if '. ' in line else line for line in todo_note.content.split('\n') if line.strip()]
-        if len(items) == 1:
-            return f"You have 1 thing on your to-do list. {items[0]}."
-        else:
-            return f"Here's your to-do list. {format_list_natural(items)}."
+        # Return the numbered todo list as-is
+        return todo_note.content.strip()
     elif action_name == "clear_todo":
         success = notes_service.clear_todo_list()
         if success:

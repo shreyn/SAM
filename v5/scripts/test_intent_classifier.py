@@ -1,13 +1,15 @@
 import joblib
 from sentence_transformers import SentenceTransformer
 import numpy as np
+import os
 
 # -----------------------------
 # CONFIGURATION
 # -----------------------------
 MODEL_NAME = 'all-MiniLM-L6-v2'  # Must match training
-CLASSIFIER_PATH = 'intent_classifier.joblib'
-LABEL_ENCODER_PATH = 'intent_label_encoder.joblib'
+MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models')
+CLASSIFIER_PATH = os.path.join(MODEL_DIR, 'intent_classifier.joblib')
+LABEL_ENCODER_PATH = os.path.join(MODEL_DIR, 'intent_label_encoder.joblib')
 
 # -----------------------------
 # LOAD MODELS

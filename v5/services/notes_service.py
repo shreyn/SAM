@@ -116,6 +116,34 @@ class NotesService:
         if not todo_note:
             # Create the todo note with empty content
             todo_note = self.create_note("to do", "")
+        else:
+            # Ensure existing todo items are properly numbered
+            todo_note = self._ensure_todo_numbering(todo_note)
+        return todo_note
+    
+    def _ensure_todo_numbering(self, todo_note: Note) -> Note:
+        """Ensure all todo items have proper numbering"""
+        if not todo_note.content.strip():
+            return todo_note
+        
+        lines = [line.strip() for line in todo_note.content.split('\n') if line.strip()]
+        numbered_lines = []
+        
+        for i, line in enumerate(lines, 1):
+            # Check if line already has a number
+            if re.match(r'^\d+[.)]', line):
+                numbered_lines.append(line)
+            else:
+                # Add number to line
+                numbered_lines.append(f"{i}. {line}")
+        
+        if numbered_lines != lines:
+            # Update the note with proper numbering
+            new_content = '\n'.join(numbered_lines)
+            self.edit_note("to do", new_content)
+            # Return updated note
+            return self.get_note_by_title("to do")
+        
         return todo_note
     
     def add_todo_item(self, item_text: str) -> bool:

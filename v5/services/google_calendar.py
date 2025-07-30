@@ -61,6 +61,7 @@ class GoogleCalendarService:
         creds = None
         token_path = self.token_path
         creds_path = self.creds_path
+        performed_auth = False  # Track if we actually performed authentication
         
         # Load existing token
         if os.path.exists(token_path):
@@ -71,6 +72,7 @@ class GoogleCalendarService:
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
+                performed_auth = True
             else:
                 if not os.path.exists(creds_path):
                     print(f"Error: {creds_path} not found. Please set up Google Calendar credentials.")
@@ -79,6 +81,7 @@ class GoogleCalendarService:
                 flow = InstalledAppFlow.from_client_secrets_file(
                     creds_path, ['https://www.googleapis.com/auth/calendar'])
                 creds = flow.run_local_server(port=0)
+                performed_auth = True
             
             # Save credentials
             with open(token_path, 'wb') as token:
@@ -86,7 +89,9 @@ class GoogleCalendarService:
         
         try:
             self.service = build('calendar', 'v3', credentials=creds)
-            print("✅ Google Calendar authentication successful")
+            # Only print success message if we actually performed authentication
+            if performed_auth:
+                print("✅ Google Calendar authentication successful")
         except Exception as e:
             print(f"❌ Google Calendar authentication failed: {e}")
     

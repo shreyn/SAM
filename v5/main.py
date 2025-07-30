@@ -1,5 +1,5 @@
-from v5.brain.orchestrator import Orchestrator
-from v5.brain.llm_interface import LLMInterface
+from v5.brain.unified_orchestrator import UnifiedOrchestrator
+from v5.brain.unified_llm_client import UnifiedLLMClient
 from v5.utils.intent_classifier import IntentClassifier
 from v5.action_schema import ACTIONS
 import time
@@ -129,12 +129,12 @@ def main():
         return obj
     def load_llm():
         t = time.time()
-        from v5.brain.llm_interface import LLMInterface
-        obj = LLMInterface()
+        from v5.brain.unified_llm_client import UnifiedLLMClient
+        obj = UnifiedLLMClient()
         # Pre-warm LLM
-        _ = obj.llm.generate_response("Hello, Sam is warming up.")
+        _ = obj.generate_general_response("Hello, Sam is warming up.")
         if MODE == "text":
-            print(f"[TIMING] LLMInterface loaded and pre-warmed in {time.time() - t:.2f} seconds")
+            print(f"[TIMING] UnifiedLLMClient loaded and pre-warmed in {time.time() - t:.2f} seconds")
         return obj
     def load_tts():
         t = time.time()
@@ -166,12 +166,12 @@ def main():
         for name, future in futures.items():
             results[name] = future.result()
     calendar_service = results['calendar_service']
-    llm_interface = results['llm_interface']
+    llm_client = results['llm_interface']
     intent_classifier = results['intent_classifier']
     tts_engine = results['tts_engine'] if MODE == "voice" else None
     t_orch = time.time()
-    orchestrator = Orchestrator(llm_interface)
-    print(f"[TIMING] Orchestrator loaded in {time.time() - t_orch:.2f} seconds")
+    orchestrator = UnifiedOrchestrator(llm_client)
+    print(f"[TIMING] Unified Orchestrator loaded in {time.time() - t_orch:.2f} seconds")
     while True:
         try:
             user_input = get_user_input_with_command_check("\n👤 You: ", orchestrator)
@@ -183,64 +183,59 @@ def main():
             if not user_input:
                 continue
             start_time = time.time()  # Start timing
+            
             # --- Intent Classification ---
             intent, probs = intent_classifier.classify(user_input)
             if MODE == "text":
                 print(f"[DEBUG] Intent: {intent} | Probabilities: {probs}")
-            # --- Routing ---
+            
+            # --- Action Classification for Simple Intent ---
+            action_name = None
             if intent == "simple":
-                # --- ML-based Action Classification ---
+                # ML-based Action Classification
                 emb = simple_action_embedder.encode([user_input])
                 pred = simple_action_clf.predict(emb)[0]
                 action_name = simple_action_le.inverse_transform([pred])[0]
                 if MODE == "text":
                     print(f"[DEBUG] Predicted action: {action_name}")
-                required_args = ACTIONS[action_name]["required_args"]
-                optional_args = ACTIONS[action_name]["optional_args"]
-                # --- Argument Extraction ---
-                collected_args = {}
-                if required_args or optional_args:
-                    extracted_args = llm_interface.extract_arguments(user_input, action_name)
-                    collected_args = {k: v for k, v in extracted_args.items() if v is not None}
-                    # --- Slot-filling loop ---
-                    missing_args = [arg for arg in required_args if arg not in collected_args]
-                    aborted = False
-                    while missing_args:
-                        missing_arg = missing_args[0]
-                        followup_q = llm_interface.generate_followup_question(missing_arg, action_name)
-                        output_response(followup_q)
-                        user_reply = get_user_input_with_command_check("👤 You: ", orchestrator)
-                        from v5.commands.handlers import CommandResult
-                        if isinstance(user_reply, CommandResult):
-                            if user_reply.abort:
-                                # Interrupting command: abort the task
-                                aborted = True
-                                break
-                            else:
-                                # Non-interrupting command: re-ask the question
-                                continue
-                        value = llm_interface.extract_argument_from_reply(user_reply, missing_arg, action_name)
-                        if value is not None and (not isinstance(value, str) or value.strip()):
-                            collected_args[missing_arg] = value
-                            missing_args = [arg for arg in required_args if arg not in collected_args]
+            
+            # --- Unified Processing ---
+            response = orchestrator.process_user_input(user_input, intent, action_name)
+            
+            # Check if we need to do slot-filling
+            current_state = orchestrator.get_current_state()
+            if current_state.get("simple_memory_active", False):
+                # We're in slot-filling mode, output the follow-up question
+                output_response(response)
+                
+                # Handle slot-filling follow-ups
+                while current_state.get("simple_memory_active", False):
+                    # Get user reply
+                    user_reply = get_user_input_with_command_check("👤 You: ", orchestrator)
+                    from v5.commands.handlers import CommandResult
+                    if isinstance(user_reply, CommandResult):
+                        if user_reply.abort:
+                            # Interrupting command: abort the task
+                            break
                         else:
-                            if MODE == "text":
-                                print(f"[DEBUG] Extraction failed, re-asking.")
-                    if aborted:
-                        continue
-                # --- Execute Action ---
-                from v5.brain.execution import execute_action
-                result = execute_action(action_name, collected_args)
-                response = result
-            elif intent == "query":
-                response = llm_interface.llm.generate_general_response(user_input)
-            elif intent == "agent":
-                # For now, fallback to orchestrator (could be replaced with agentic pipeline)
-                response = orchestrator.process_user_input(user_input)
-            else:
-                response = "Sorry, I couldn't classify your request."
+                            # Non-interrupting command: re-ask the question
+                            continue
+                    
+                    # Process the follow-up using unified orchestrator
+                    response = orchestrator.process_simple_followup(user_reply)
+                    
+                    # Check if we're still in slot-filling mode
+                    current_state = orchestrator.get_current_state()
+                    if not current_state.get("simple_memory_active", False):
+                        break
+                    else:
+                        # Still in slot-filling, output the next question
+                        output_response(response)
+            
             elapsed = (time.time() - start_time) * 1000  # ms
-            output_response(response)
+            # Only output response if we're not in slot-filling mode
+            if not current_state.get("simple_memory_active", False):
+                output_response(response)
             if MODE == "text":
                 print(f"[DEBUG] Processing time: {elapsed:.1f} ms")
         except KeyboardInterrupt:
