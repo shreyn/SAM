@@ -96,18 +96,24 @@ class PlanValidator:
             errors.append(f"Step {step_index}: must be a dictionary")
             return errors
         
-        # Check for step ID
-        if "id" not in step:
+        # Check for step ID (conditional steps don't need IDs)
+        if "id" not in step and "condition" not in step:
             errors.append(f"Step {step_index}: missing 'id' field")
         
-        # Check step type (action or reasoning)
+        # Check step type (action, reasoning, or conditional)
         has_action = "action" in step
         has_reasoning = "reasoning" in step
+        has_condition = "condition" in step
         
-        if not has_action and not has_reasoning:
-            errors.append(f"Step {step_index}: must have either 'action' or 'reasoning'")
-        elif has_action and has_reasoning:
-            errors.append(f"Step {step_index}: cannot have both 'action' and 'reasoning'")
+        if not has_action and not has_reasoning and not has_condition:
+            errors.append(f"Step {step_index}: must have either 'action', 'reasoning', or 'condition'")
+        elif sum([has_action, has_reasoning, has_condition]) > 1:
+            errors.append(f"Step {step_index}: cannot have multiple types (action, reasoning, condition)")
+        
+        # Validate conditional steps
+        if has_condition:
+            conditional_errors = self._validate_conditional_step(step, step_index)
+            errors.extend(conditional_errors)
         
         # Validate action steps
         if has_action:
@@ -185,6 +191,26 @@ class PlanValidator:
             errors.append(f"Step {step_index}: 'reasoning' must be a string")
         elif not reasoning.strip():
             errors.append(f"Step {step_index}: 'reasoning' cannot be empty")
+        
+        return errors
+    
+    def _validate_conditional_step(self, step: Dict[str, Any], step_index: int) -> List[str]:
+        """Validate a conditional step."""
+        errors = []
+        
+        # Check condition field
+        condition = step.get("condition")
+        if not isinstance(condition, str):
+            errors.append(f"Step {step_index}: 'condition' must be a string")
+        elif not condition.strip():
+            errors.append(f"Step {step_index}: 'condition' cannot be empty")
+        
+        # Check next_id field
+        next_id = step.get("next_id")
+        if not isinstance(next_id, str):
+            errors.append(f"Step {step_index}: 'next_id' must be a string")
+        elif not next_id.strip():
+            errors.append(f"Step {step_index}: 'next_id' cannot be empty")
         
         return errors
     

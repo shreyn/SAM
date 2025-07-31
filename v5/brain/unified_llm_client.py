@@ -243,27 +243,55 @@ class UnifiedLLMClient:
         from v5.brain.planning_prompts import build_planning_prompt
         from v5.brain.plan_validator import PlanValidator
         
+        print(f"[AGENT-DEBUG] Generating plan for goal: {user_goal}")
+        
         # Build the planning prompt
         prompt = build_planning_prompt(user_goal, actions_schema)
+        print(f"[AGENT-DEBUG] Planning prompt length: {len(prompt)} characters")
         
         # Generate plan using LLM
+        print(f"[AGENT-DEBUG] Making LLM request for plan generation...")
+        start_time = time.time()
         raw_response = self._make_request(
             messages=[
                 {"role": "system", "content": "You are a planning agent. Output only valid JSON plans. Be precise and accurate."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=300,
+            max_tokens=1500,
             temperature=0.05,
             top_p=0.8,
             stream=stream
         )
+        llm_time = (time.time() - start_time) * 1000
+        print(f"[AGENT-DEBUG] LLM response received in {llm_time:.1f} ms")
+        print(f"[AGENT-DEBUG] Raw LLM response length: {len(raw_response)} characters")
+        print(f"[AGENT-DEBUG] Raw LLM response (FULL): {raw_response}")
         
         # Parse the response into a plan
-        plan = self._parse_plan_response(raw_response)
+        print(f"[AGENT-DEBUG] Parsing LLM response into plan...")
+        try:
+            plan = self._parse_plan_response(raw_response)
+            print(f"[AGENT-DEBUG] Plan parsing successful")
+            print(f"[AGENT-DEBUG] Plan structure: {list(plan.keys()) if isinstance(plan, dict) else 'Not a dict'}")
+            if isinstance(plan, dict) and 'steps' in plan:
+                print(f"[AGENT-DEBUG] Number of steps: {len(plan['steps'])}")
+                for i, step in enumerate(plan['steps']):
+                    step_type = 'action' if 'action' in step else 'reasoning' if 'reasoning' in step else 'conditional' if 'condition' in step else 'unknown'
+                    step_content = step.get('action', step.get('reasoning', step.get('condition', 'unknown')))
+                    print(f"[AGENT-DEBUG] Step {i+1}: {step_type} - {step_content}")
+                    # Also show the full step structure for debugging
+                    print(f"[AGENT-DEBUG] Step {i+1} full structure: {step}")
+        except Exception as e:
+            print(f"[AGENT-DEBUG] Plan parsing failed: {e}")
+            raise
         
         # Validate the plan
+        print(f"[AGENT-DEBUG] Validating plan...")
         validator = PlanValidator()
         is_valid, errors = validator.validate_plan(plan, actions_schema)
+        print(f"[AGENT-DEBUG] Plan validation result: {is_valid}")
+        if errors:
+            print(f"[AGENT-DEBUG] Validation errors: {errors}")
         
         return plan, is_valid, errors
     
@@ -278,35 +306,65 @@ class UnifiedLLMClient:
             Parsed plan dictionary
         """
         try:
+            print(f"[AGENT-DEBUG] Starting JSON extraction from response...")
+            
             # Extract JSON from the response
             start_idx = response.find('{')
             end_idx = response.rfind('}') + 1
 
+            print(f"[AGENT-DEBUG] JSON bounds: start_idx={start_idx}, end_idx={end_idx}")
+
             if start_idx == -1 or end_idx == 0:
+                print(f"[AGENT-DEBUG] No JSON braces found in response")
                 raise ValueError("No JSON found in response")
 
             json_str = response[start_idx:end_idx]
+            print(f"[AGENT-DEBUG] Extracted JSON string length: {len(json_str)}")
+            print(f"[AGENT-DEBUG] Extracted JSON (first 300 chars): {json_str[:300]}")
+            if len(json_str) > 300:
+                print(f"[AGENT-DEBUG] Extracted JSON (last 200 chars): {json_str[-200:]}")
             
             # Clean the JSON string
+            print(f"[AGENT-DEBUG] Cleaning JSON string...")
             json_str = self._clean_json_string(json_str)
+            print(f"[AGENT-DEBUG] Cleaned JSON string length: {len(json_str)}")
+            print(f"[AGENT-DEBUG] Cleaned JSON (first 300 chars): {json_str[:300]}")
+            if len(json_str) > 300:
+                print(f"[AGENT-DEBUG] Cleaned JSON (last 200 chars): {json_str[-200:]}")
             
+            print(f"[AGENT-DEBUG] Attempting JSON parsing...")
             plan = json.loads(json_str)
+            print(f"[AGENT-DEBUG] JSON parsing successful")
 
             # Validate basic structure
             if not isinstance(plan, dict):
+                print(f"[AGENT-DEBUG] Plan is not a dictionary: {type(plan)}")
                 raise ValueError("Plan must be a dictionary")
 
             if "steps" not in plan:
+                print(f"[AGENT-DEBUG] Plan missing 'steps' key. Available keys: {list(plan.keys())}")
                 raise ValueError("Plan must contain 'steps' key")
 
             if not isinstance(plan["steps"], list):
+                print(f"[AGENT-DEBUG] Steps is not a list: {type(plan['steps'])}")
                 raise ValueError("Steps must be a list")
 
+            print(f"[AGENT-DEBUG] Plan structure validation successful")
             return plan
 
         except json.JSONDecodeError as e:
+            print(f"[AGENT-DEBUG] JSON decode error: {e}")
+            print(f"[AGENT-DEBUG] Error occurred at position: {e.pos}")
+            print(f"[AGENT-DEBUG] Line: {e.lineno}, Column: {e.colno}")
+            # Show the problematic area
+            if hasattr(e, 'pos') and e.pos < len(json_str):
+                start_show = max(0, e.pos - 50)
+                end_show = min(len(json_str), e.pos + 50)
+                print(f"[AGENT-DEBUG] Problematic area: {json_str[start_show:end_show]}")
+                print(f"[AGENT-DEBUG] Error position: {' ' * (e.pos - start_show)}^")
             raise ValueError(f"Invalid JSON in response: {e}")
         except Exception as e:
+            print(f"[AGENT-DEBUG] Unexpected error during plan parsing: {e}")
             raise ValueError(f"Failed to parse plan: {e}")
     
     def _clean_json_string(self, json_str: str) -> str:
@@ -321,6 +379,9 @@ class UnifiedLLMClient:
         """
         import re
         
+        print(f"[AGENT-DEBUG] Cleaning JSON string...")
+        original_length = len(json_str)
+        
         # Remove single-line comments (// ...)
         json_str = re.sub(r'//.*?(?=\n|$)', '', json_str)
         
@@ -329,6 +390,34 @@ class UnifiedLLMClient:
         
         # Remove trailing commas before closing brackets/braces
         json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+        
+        # Additional cleaning: fix common LLM JSON issues
+        # Fix missing quotes around property names
+        json_str = re.sub(r'([{,])\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1 "\2":', json_str)
+        
+        # DON'T convert single quotes to double quotes - this breaks valid JSON
+        # The LLM correctly uses single quotes inside string content
+        # json_str = re.sub(r"'([^']*)'", r'"\1"', json_str)  # REMOVED - this was the bug!
+        
+        # CRITICAL FIX: Handle unescaped quotes inside string values
+        # This is the main issue - LLM generates quotes inside strings without escaping them
+        
+        # First, try to parse the JSON as-is to see if it's already valid
+        try:
+            json.loads(json_str)
+            print(f"[AGENT-DEBUG] JSON is already valid, no cleaning needed")
+            return json_str.strip()
+        except json.JSONDecodeError as e:
+            print(f"[AGENT-DEBUG] JSON needs cleaning. Error: {e}")
+            print(f"[AGENT-DEBUG] For now, returning original JSON to see exact LLM output")
+            # For debugging, return the original JSON to see exactly what the LLM generated
+            return json_str.strip()
+        
+        # Remove any non-printable characters
+        json_str = ''.join(char for char in json_str if char.isprintable() or char in '\n\r\t')
+        
+        cleaned_length = len(json_str)
+        print(f"[AGENT-DEBUG] JSON cleaning: {original_length} -> {cleaned_length} characters")
         
         return json_str.strip()
     

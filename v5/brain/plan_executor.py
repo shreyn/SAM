@@ -40,9 +40,14 @@ class PlanExecutor:
         Returns:
             Dictionary with execution results and final memory state
         """
+        print(f"[AGENT-DEBUG] Starting plan execution for goal: {plan.get('goal', 'Unknown')}")
+        
         # Validate plan first
+        print(f"[AGENT-DEBUG] Validating plan before execution...")
         is_valid, errors = self.validator.validate_plan(plan, self.actions_schema)
+        print(f"[AGENT-DEBUG] Plan validation result: {is_valid}")
         if not is_valid:
+            print(f"[AGENT-DEBUG] Plan validation failed with errors: {errors}")
             return {
                 "success": False,
                 "error": "Plan validation failed",
@@ -53,24 +58,33 @@ class PlanExecutor:
             }
         
         # Clear memory for new execution
+        print(f"[AGENT-DEBUG] Clearing memory for new execution...")
         self.memory.clear()
         
         results = []
         execution_start = time.time()
         
         try:
+            print(f"[AGENT-DEBUG] Executing {len(plan['steps'])} steps...")
             for i, step in enumerate(plan["steps"], 1):
+                print(f"[AGENT-DEBUG] Executing step {i}/{len(plan['steps'])}...")
                 step_result = self._execute_step(step, i)
                 results.append(step_result)
+                
+                print(f"[AGENT-DEBUG] Step {i} completed. Type: {step_result.get('step_type', 'unknown')}")
+                if step_result.get("error"):
+                    print(f"[AGENT-DEBUG] Step {i} failed with error: {step_result['error']}")
                 
                 # Store result immediately if save_as is specified
                 if "save_as" in step:
                     # Store only the actual result, not the entire step result object
                     actual_result = step_result.get("result") if isinstance(step_result, dict) else step_result
                     self.memory.store(step["save_as"], actual_result)
+                    print(f"[AGENT-DEBUG] Stored result in memory as '{step['save_as']}': {str(actual_result)[:100]}")
                 
                 # Check for step failure
                 if step_result.get("error"):
+                    print(f"[AGENT-DEBUG] Plan execution failed at step {i}")
                     return {
                         "success": False,
                         "error": f"Step {i} failed: {step_result['error']}",
@@ -81,6 +95,7 @@ class PlanExecutor:
                     }
             
             execution_time = time.time() - execution_start
+            print(f"[AGENT-DEBUG] All steps completed successfully in {execution_time:.2f} seconds")
             
             return {
                 "success": True,
@@ -93,6 +108,9 @@ class PlanExecutor:
             
         except Exception as e:
             execution_time = time.time() - execution_start
+            print(f"[AGENT-DEBUG] Exception during plan execution: {e}")
+            import traceback
+            print(f"[AGENT-DEBUG] Full traceback: {traceback.format_exc()}")
             return {
                 "success": False,
                 "error": f"Execution failed: {str(e)}",
@@ -122,9 +140,12 @@ class PlanExecutor:
             elif "reasoning" in step:
                 # Execute reasoning step
                 result = self._execute_reasoning_step(step, step_number)
+            elif "condition" in step:
+                # Execute conditional step
+                result = self._execute_conditional_step(step, step_number)
             else:
                 result = {
-                    "error": "Step must have either 'action' or 'reasoning'",
+                    "error": "Step must have either 'action', 'reasoning', or 'condition'",
                     "step_type": "unknown"
                 }
             
@@ -228,6 +249,70 @@ class PlanExecutor:
                 "error": f"Reasoning execution failed: {str(e)}",
                 "step_type": "reasoning",
                 "instruction": reasoning_instruction
+            }
+    
+    def _execute_conditional_step(self, step: Dict[str, Any], step_number: int) -> Dict[str, Any]:
+        """
+        Execute a conditional step.
+        
+        Args:
+            step: The conditional step to execute
+            step_number: Step number for logging
+            
+        Returns:
+            Dictionary with conditional result
+        """
+        condition = step["condition"]
+        next_id = step["next_id"]
+        
+        # Evaluate the condition using the reasoning engine
+        try:
+            # Parse the condition (e.g., "${has_homework_note} == true")
+            # For now, handle simple boolean conditions
+            if "==" in condition:
+                var_name, expected_value = condition.split("==")
+                var_name = var_name.strip().replace("${", "").replace("}", "")
+                expected_value = expected_value.strip()
+                
+                # Get the actual value from memory
+                actual_value = self.memory.retrieve(var_name)
+                
+                # Convert expected value to appropriate type
+                if expected_value.lower() == "true":
+                    expected_value = True
+                elif expected_value.lower() == "false":
+                    expected_value = False
+                elif expected_value.isdigit():
+                    expected_value = int(expected_value)
+                
+                # Compare values
+                condition_result = actual_value == expected_value
+                
+                return {
+                    "step_type": "conditional",
+                    "condition": condition,
+                    "next_id": next_id,
+                    "result": condition_result,
+                    "evaluated_condition": f"{var_name} == {actual_value} (expected: {expected_value})"
+                }
+            else:
+                # For more complex conditions, use reasoning engine
+                result = self.reasoning_engine.execute_reasoning_step(f"Evaluate: {condition}", self.memory)
+                
+                return {
+                    "step_type": "conditional",
+                    "condition": condition,
+                    "next_id": next_id,
+                    "result": result,
+                    "evaluated_condition": result
+                }
+                
+        except Exception as e:
+            return {
+                "error": f"Conditional execution failed: {str(e)}",
+                "step_type": "conditional",
+                "condition": condition,
+                "next_id": next_id
             }
     
     def get_execution_summary(self) -> Dict[str, Any]:

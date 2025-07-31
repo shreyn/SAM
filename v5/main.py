@@ -43,9 +43,9 @@ def get_user_input_with_command_check_text(prompt, orchestrator):
         if command_entry:
             handler = command_entry["handler"]
             interrupting = command_entry["interrupting"]
-            # Call with session if needed
-            if handler.__name__ == 'handle_cancel':
-                result = handler(orchestrator.session)
+            # Call with orchestrator if needed
+            if handler.__name__ in ['handle_cancel', 'handle_agent_override']:
+                result = handler(orchestrator)
             else:
                 result = handler()
             if result and result.message:
@@ -68,8 +68,8 @@ def get_user_input_with_command_check_voice(prompt, orchestrator):
     if command_entry:
         handler = command_entry["handler"]
         interrupting = command_entry["interrupting"]
-        if handler.__name__ == 'handle_cancel':
-            result = handler(orchestrator.session)
+        if handler.__name__ in ['handle_cancel', 'handle_agent_override']:
+            result = handler(orchestrator)
         else:
             result = handler()
         if result and result.message:
@@ -198,6 +198,9 @@ def main():
                 action_name = simple_action_le.inverse_transform([pred])[0]
                 if MODE == "text":
                     print(f"[DEBUG] Predicted action: {action_name}")
+            elif intent == "agent":
+                if MODE == "text":
+                    print(f"[AGENT-DEBUG] Agent intent detected - will use planning and reasoning")
             
             # --- Unified Processing ---
             response = orchestrator.process_user_input(user_input, intent, action_name)

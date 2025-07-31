@@ -38,13 +38,18 @@ class ReasoningEngine:
         Returns:
             The result of the reasoning (e.g., "7:00 PM")
         """
+        print(f"[AGENT-DEBUG] Executing reasoning step: {reasoning_instruction}")
+        print(f"[AGENT-DEBUG] Memory context: {memory.format_for_llm()}")
+        
         try:
             # Execute reasoning using unified LLM client
             result = self.llm.execute_reasoning(reasoning_instruction, memory.format_for_llm())
+            print(f"[AGENT-DEBUG] Reasoning result: {result}")
             
             return result
             
         except Exception as e:
+            print(f"[AGENT-DEBUG] Reasoning step failed: {e}")
             return f"REASONING_ERROR: {str(e)}"
     
     def validate_reasoning_result(self, result: Any, instruction: str) -> bool:

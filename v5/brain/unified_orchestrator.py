@@ -65,9 +65,9 @@ class UnifiedOrchestrator:
         if command_result:
             return command_result
         
-        # Determine intent and action if not provided
-        if intent is None or action_name is None:
-            intent, action_name = self._classify_intent_and_action(user_input)
+        # Intent and action should always be provided by main.py
+        if intent is None:
+            return "Error: Intent classification failed. Please try again."
         
         # Route to appropriate handler
         if intent == "simple":
@@ -123,30 +123,7 @@ class UnifiedOrchestrator:
         self.current_mode = None
         self.current_action = None
     
-    # ============================================================================
-    # INTENT AND ACTION CLASSIFICATION
-    # ============================================================================
-    
-    def _classify_intent_and_action(self, user_input: str) -> Tuple[str, Optional[str]]:
-        """
-        Classify user input to determine intent and action.
-        
-        Args:
-            user_input: User's natural language input
-            
-        Returns:
-            Tuple of (intent, action_name)
-        """
-        # This method is a fallback - in practice, intent and action classification
-        # should be done in main.py using the ML classifiers and passed to this method
-        
-        # Simple heuristic: if it contains action keywords, it's likely simple
-        action_keywords = ["create", "add", "show", "get", "read", "edit", "delete", "clear"]
-        if any(keyword in user_input.lower() for keyword in action_keywords):
-            # This is a simplified version - in practice, use the ML classifier
-            return "simple", None  # Action name would be determined by ML classifier
-        else:
-            return "agent", None
+
     
     # ============================================================================
     # SIMPLE ACTION HANDLING (Fast slot-filling)
@@ -287,36 +264,56 @@ class UnifiedOrchestrator:
         Returns:
             Response string describing the result
         """
+        print(f"[AGENT-DEBUG] Starting agentic request processing for: {user_input}")
+        
         # Set current mode
         self.current_mode = "agent"
+        print(f"[AGENT-DEBUG] Set current mode to: {self.current_mode}")
         
         # Lazy-load agentic components
+        print(f"[AGENT-DEBUG] Ensuring agentic components are loaded...")
         self._ensure_agentic_components()
+        print(f"[AGENT-DEBUG] Agentic components loaded successfully")
         
         try:
             # Step 1: Generate a plan
+            print(f"[AGENT-DEBUG] Step 1: Generating plan...")
             plan, is_valid, errors = self.llm_client.generate_plan(user_input, ACTIONS)
+            print(f"[AGENT-DEBUG] Plan generation completed. Valid: {is_valid}")
             
             if not is_valid:
                 error_msg = f"Sorry, I couldn't create a plan for that request. "
                 if errors:
                     error_msg += f"Errors: {', '.join(errors[:3])}"  # Show first 3 errors
+                print(f"[AGENT-DEBUG] Plan validation failed: {error_msg}")
                 return error_msg
             
+            print(f"[AGENT-DEBUG] Plan is valid, proceeding to execution")
+            
             # Step 2: Execute the plan
+            print(f"[AGENT-DEBUG] Step 2: Executing plan...")
             execution_result = self.plan_executor.execute_plan(plan)
+            print(f"[AGENT-DEBUG] Plan execution completed. Success: {execution_result.get('success', False)}")
             
             if not execution_result["success"]:
-                return f"Sorry, I couldn't complete that request. Error: {execution_result.get('error', 'Unknown error')}"
+                error_msg = f"Sorry, I couldn't complete that request. Error: {execution_result.get('error', 'Unknown error')}"
+                print(f"[AGENT-DEBUG] Plan execution failed: {error_msg}")
+                return error_msg
             
             # Step 3: Format the response
+            print(f"[AGENT-DEBUG] Step 3: Formatting response...")
             response = self._format_agentic_response(execution_result)
+            print(f"[AGENT-DEBUG] Response formatted successfully")
             
             # Reset mode after completion
             self.current_mode = None
+            print(f"[AGENT-DEBUG] Agentic request processing completed successfully")
             return response
             
         except Exception as e:
+            print(f"[AGENT-DEBUG] Exception during agentic request processing: {e}")
+            import traceback
+            print(f"[AGENT-DEBUG] Full traceback: {traceback.format_exc()}")
             self.current_mode = None
             return f"Sorry, I encountered an error while processing your request: {str(e)}"
     

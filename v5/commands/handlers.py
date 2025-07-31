@@ -4,8 +4,8 @@ class CommandResult:
         self.abort = abort
         self.message = message
 
-def handle_cancel(session_state):
-    session_state.reset()
+def handle_cancel(orchestrator):
+    orchestrator.reset()
     return CommandResult(handled=True, abort=True, message="SAM: Current task and follow-ups have been cancelled.")
 
 def handle_shutdown():
