@@ -18,9 +18,8 @@ try:
     GOOGLE_AVAILABLE = True
 except ImportError:
     GOOGLE_AVAILABLE = False
-    print("Warning: Google Calendar integration not available. Install with: pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client")
 
-from utils.config import TIMEZONE
+from ..utils.config import CRED_PATH, TOKEN_PATH, SCOPES, TIMEZONE
 
 @dataclass
 class CalendarEvent:
@@ -48,8 +47,8 @@ class GoogleCalendarService:
             return
         
         creds = None
-        token_path = os.path.join('v2_data', 'token.pickle')
-        creds_path = os.path.join('v2_data', 'credentials.json')
+        token_path = self.token_path
+        creds_path = self.creds_path
         
         # Load existing token
         if os.path.exists(token_path):
@@ -66,7 +65,7 @@ class GoogleCalendarService:
                     return
                 
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    creds_path, ['https://www.googleapis.com/auth/calendar'])
+                    creds_path, SCOPES)
                 creds = flow.run_local_server(port=0)
             
             # Save credentials

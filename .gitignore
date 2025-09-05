@@ -16,3 +16,8 @@ __pycache__/
 data/
 models/
 TTS/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
